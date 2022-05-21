@@ -1,0 +1,40 @@
+{% extends 'layout.html' %}
+{% block title %} Upload {% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="row align-items-center">
+        <div class="col-6 offset-2 mt-5">
+              <ul class="progressbar">
+                  <li class="done"> Select </li>
+                  <li class="done"> Upload </li>
+                  <li> Check </li>
+              </ul>
+        </div>
+    </div>
+
+    <div class="row align-items-center mt-5">
+        <div class="col-6 offset-2">
+        <ol>
+        {%for i in range(0, nfiles)%}
+            <li>{{files[i]}}</li>
+        {%endfor%}
+        </ol>
+        </div>
+    </div>
+
+    <div class="row align-items-center mt-5">
+        <div class="col-2">
+            <form method="post" action="/upload">
+                <button type="submit" class="btn btn-light">Go back</button>
+            </form>
+         </div>
+         <div class="col-3">
+             <form method="post" action="/transfer_xnat">
+                <button type="submit" class="btn btn-danger">Upload</button>
+             </form>
+        </div>
+  </div>
+</div>
+
+{% endblock %}

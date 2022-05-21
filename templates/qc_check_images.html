@@ -1,0 +1,17 @@
+<div class="container">
+    <div class="row imagetiles">
+        {%for i in range(0, nfiles)%}
+            {% if files[i] == -1 %}
+                <div class="col-lg-3 col-md-3 col-sm-3 col-xs-6">
+                    <div class="spinner-border" style="color: red">
+                      <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-lg-3 col-md-3 col-sm-3 col-xs-6">
+                    <img src=/static/{{files[i]}}>
+                </div>
+            {% endif %}
+        {%endfor%}
+    </div>
+</div>

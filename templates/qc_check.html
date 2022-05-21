@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block title %} Check {% endblock %}
+{% block content %}
+<h2>QC Overview</h2>
+<div class="container">
+
+    <button>Update</button>
+    <p>
+    </p>
+
+
+    <script>
+    let button = document.querySelector('button');
+    window.setInterval(function () {
+    ///button.onclick = function ()  {
+        console.log('TEST');
+        $.get('/qc_check_images', function(data) {
+            document.querySelector('p').innerHTML = data;
+        });
+    }, 2000);
+    </script>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+name: OpenHeartXNat
+channels:
+  - defaults
+dependencies: 
+  - python=3.8
+  - pip
+  - numpy
+  - scipy
+  - imageio
+  - pydicom
+  - pip:
+    - pyxnat
+    - flask
+    - flask-mail
+    - flask-sqlalchemy
+    - flask_login
+
+  
+    

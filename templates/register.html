@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block title %} Upload {% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="row align-items-center">
+        <div class="col-4 offset-2">
+            <img src="/static/logo_front.png" class="img-fluid" alt="Responsive image" width="200">
+        </div>
+        <div class="col-4">
+            <form action="" method = "POST">
+              <div class="form-group-lg">
+                <label for="UserEmail">Email address</label>
+                <input type="email" class="form-control" name="UserEmail" id="UserEmail" aria-describedby="emailHelp" placeholder="Enter email">
+                <small id="emailHelp" class="form-text text-muted">We'll send you a single-use security token to verify the email address.</small>
+              </div>
+              <button type="submit" class="btn btn-danger">Send token</button>
+            </form>
+        </div>
+  </div>
+</div>
+{% endblock %}
+
