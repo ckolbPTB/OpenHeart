@@ -124,19 +124,6 @@ def logout():
     return redirect('/')
 
 
-@app.route('/qc_check_images', methods=['GET', 'POST'])
-@login_required
-def xnat_qc_check_images():
-    fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
-    qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
-    for ind in range(len(qc_files)):
-        if qc_files[ind] != -1:
-            qc_files[ind] = os.path.basename(qc_files[ind])
-
-    print(qc_files)
-    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files)
-
-
 @app.route('/qc_check', methods=['GET', 'POST'])
 @login_required
 def xnat_qc_form():
@@ -179,6 +166,19 @@ def transfer_xnat():
             for file in files:
                 os.remove(os.path.join(root, file))
         return render_template('qc_check.html')
+
+
+@app.route('/qc_check_images', methods=['GET', 'POST'])
+@login_required
+def xnat_qc_check_images():
+    fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
+    qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
+    for ind in range(len(qc_files)):
+        if qc_files[ind] != -1:
+            qc_files[ind] = os.path.basename(qc_files[ind])
+
+    print(qc_files)
+    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files)
 
 
 if __name__ == "__main__":

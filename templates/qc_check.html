@@ -13,7 +13,6 @@
     let button = document.querySelector('button');
     window.setInterval(function () {
     ///button.onclick = function ()  {
-        console.log('TEST');
         $.get('/qc_check_images', function(data) {
             document.querySelector('p').innerHTML = data;
         });

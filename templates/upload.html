@@ -30,23 +30,16 @@
                 <input type="file" name="file" class="form-control" id="customFile"/>
                 <small id="customFileHelp" class="form-text text-muted">Select single zip file which contains raw data files in ismrmrd raw data format. Subfolders inside the zip file are not supported.</small>
               </div>
-            <button type="submit" class="btn btn-danger">Upload</button>
-
+        </div>
+    </div>
+        <div class="row align-items-center mt-5">
+         <div class="col-3 offset-2">
+             <form method="post" action="/uploader">
+                <button type="submit" class="btn btn-danger">Select</button>
+             </form>
         </div>
     </div>
     </form>
-    <div class="row align-items-center mt-5">
-        <div class="col-2">
-            <form method="post" action="/">
-                <button type="submit" class="btn btn-light">Go back</button>
-            </form>
-         </div>
-         <div class="col-3">
-             <form method="post" action="/uploader">
-                <button type="submit" class="btn btn-danger">Upload</button>
-             </form>
-        </div>
-  </div>
 </div>
 
 {% endblock %}

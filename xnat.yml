@@ -7,13 +7,14 @@ dependencies:
   - numpy
   - scipy
   - imageio
-  - pydicom
+  - matplotlib
   - pip:
     - pyxnat
     - flask
     - flask-mail
     - flask-sqlalchemy
-    - flask_login
+    - flask-login
+    - pydicom
 
   
     
