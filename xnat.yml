@@ -15,6 +15,7 @@ dependencies:
     - flask-sqlalchemy
     - flask-login
     - pydicom
+    - ismrmrd
 
   
     

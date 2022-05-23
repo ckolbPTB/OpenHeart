@@ -4,6 +4,38 @@ import glob, os
 import numpy as np
 import matplotlib.pyplot as plt
 
+def ismrmrd_2_xnat(ismrmrd_header):
+    xnat_dict = {}
+
+    xnat_dict['scans'] = 'xnat:mrScanData'
+    xnat_dict['xnat:mrScanData/fieldStrength'] = str(ismrmrd_header.acquisitionSystemInformation.systemFieldStrength_T) + 'T'
+
+    xnat_dict['xnat:mrScanData/parameters/subjectPosition'] = ismrmrd_header.measurementInformation.patientPosition.value
+
+    xnat_dict['xnat:mrScanData/parameters/voxelRes.units'] = 'mm'
+    xnat_dict['xnat:mrScanData/parameters/voxelRes/x'] = float(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.x / float(ismrmrd_header.encoding[0].reconSpace.matrixSize.x))
+    xnat_dict['xnat:mrScanData/parameters/voxelRes/y'] = float(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.y / float(ismrmrd_header.encoding[0].reconSpace.matrixSize.y))
+    xnat_dict['xnat:mrScanData/parameters/voxelRes/z'] = float(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.z / float(ismrmrd_header.encoding[0].reconSpace.matrixSize.z))
+
+    xnat_dict['xnat:mrScanData/parameters/fov/x'] = int(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.x)
+    xnat_dict['xnat:mrScanData/parameters/fov/y'] = int(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.y)
+
+    xnat_dict['xnat:mrScanData/parameters/matrix/x'] = int(ismrmrd_header.encoding[0].reconSpace.matrixSize.x)
+    xnat_dict['xnat:mrScanData/parameters/matrix/y'] = int(ismrmrd_header.encoding[0].reconSpace.matrixSize.y)
+
+    xnat_dict['xnat:mrScanData/parameters/partitions'] = int(ismrmrd_header.encoding[0].encodingLimits.kspace_encoding_step_2.maximum - ismrmrd_header.encoding[0].encodingLimits.kspace_encoding_step_2.minimum + 1)
+    xnat_dict['xnat:mrScanData/parameters/tr'] = float(ismrmrd_header.sequenceParameters.TR[0])
+    xnat_dict['xnat:mrScanData/parameters/te'] = float(ismrmrd_header.sequenceParameters.TE[0])
+    xnat_dict['xnat:mrScanData/parameters/ti'] = float(ismrmrd_header.sequenceParameters.TI[0])
+    xnat_dict['xnat:mrScanData/parameters/flip'] = int(ismrmrd_header.sequenceParameters.flipAngle_deg[0])
+    xnat_dict['xnat:mrScanData/parameters/sequence'] = ismrmrd_header.sequenceParameters.sequence_type
+
+    xnat_dict['xnat:mrScanData/echoSpacing'] = float(ismrmrd_header.sequenceParameters.echo_spacing[0])
+
+    return(xnat_dict)
+
+
+
 def max99perc(dat):
     dat = np.sort(dat.flatten())
     return (dat[int(np.round(dat.shape[0] * 0.99))])

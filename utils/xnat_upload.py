@@ -2,6 +2,8 @@ import pyxnat
 import numpy as np
 from datetime import datetime
 import os, shutil, glob
+import ismrmrd
+import utils
 
 def upload_raw_mr(server_address, username, pw, data_path, tmp_path):
     experiment_date = '2022-05-04'
@@ -53,11 +55,13 @@ def upload_raw_mr(server_address, username, pw, data_path, tmp_path):
         if scan.exists():
             print(f'xnat scan {scan_id} already exists')
         else:
-            scan.create(
-                **{'scans': 'xnat:mrScanData', 'xnat:mrScanData/type': 'T1',
-                   'xnat:mrScanData/coil': '32ch',
-                   'xnat:mrScanData/fieldStrength': '1.5T',
-                   'xnat:mrScanData/parameters/tr': '3.4'})  # ,
+            # Get ISMRMRD header to populate MrScanData fields
+            dset = ismrmrd.Dataset(tmp_path + raw_files[ind], 'dataset', create_if_needed=False)
+            header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
+            xnat_hdr = utils.ismrmrd_2_xnat(header)
+            dset.close()
+
+            scan.create(**xnat_hdr)  # ,
             # 'xnat:mrScanData/trajectory':'cartesian'})
 
             scan_resource = scan.resource('MR_RAW')
