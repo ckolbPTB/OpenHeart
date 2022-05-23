@@ -9,6 +9,9 @@ __pycache__/
 # data base
 *.db
 
+# gif images
+*.gif
+
 # pycharm
 .idea/
 

@@ -21,7 +21,6 @@ data_path = main_path + 'unzip/'
 tmp_path_up = main_path + 'upload/'
 tmp_path_down = main_path + 'download/'
 qc_im_path = main_path + 'qc/'
-qc_im_path = '/Users/christoph/Documents/KCL/Matlab/Bitbucket/ck/Xnat/static/'
 
 
 app = Flask(__name__, template_folder='templates')
@@ -172,7 +171,8 @@ def transfer_xnat():
 @login_required
 def xnat_qc_check_images():
     fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
-    qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
+    #qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
+    qc_files = ['meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif']
     for ind in range(len(qc_files)):
         if qc_files[ind] != -1:
             qc_files[ind] = os.path.basename(qc_files[ind])
