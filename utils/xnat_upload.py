@@ -61,9 +61,7 @@ def upload_raw_mr(server_address, username, pw, data_path, tmp_path):
             xnat_hdr = utils.ismrmrd_2_xnat(header)
             dset.close()
 
-            scan.create(**xnat_hdr)  # ,
-            # 'xnat:mrScanData/trajectory':'cartesian'})
-
+            scan.create(**xnat_hdr)
             scan_resource = scan.resource('MR_RAW')
             scan_resource.put_dir(tmp_path, format='HDF5', label='MR_RAW',
                                   content='RAW', **{'xsi:type': 'xnat:mrScanData'})

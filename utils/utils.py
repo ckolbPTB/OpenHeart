@@ -30,7 +30,7 @@ def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict['xnat:mrScanData/parameters/flip'] = int(ismrmrd_header.sequenceParameters.flipAngle_deg[0])
     xnat_dict['xnat:mrScanData/parameters/sequence'] = ismrmrd_header.sequenceParameters.sequence_type
 
-    xnat_dict['xnat:mrScanData/echoSpacing'] = float(ismrmrd_header.sequenceParameters.echo_spacing[0])
+    xnat_dict['xnat:mrScanData/parameters/echoSpacing'] = float(ismrmrd_header.sequenceParameters.echo_spacing[0])
 
     return(xnat_dict)
 

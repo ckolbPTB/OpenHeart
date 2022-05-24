@@ -9,8 +9,12 @@ __pycache__/
 # data base
 *.db
 
-# gif images
+.DS_Store
+
+# qc data
 *.gif
+*.zip
+*.h5
 
 # pycharm
 .idea/
