@@ -13,19 +13,24 @@
     </div>
 </div>
 <div class="container">
-
-    <button>Update</button>
-    <p>
-    </p>
-
-
+    <form method="post" action="/submit" enctype="multipart/form-data">
+        <p>
+        </p>
+    </form>
     <script>
-    let button = document.querySelector('button');
-    window.setInterval(function () {
-    ///button.onclick = function ()  {
+    var counter = 0;
+    var recon_done = 0;
+    var reload = window.setInterval(function () {
         $.get('/qc_check_images', function(data) {
             document.querySelector('p').innerHTML = data;
         });
+        counter++;
+        if ((counter === 2) || (recon_done === 1)){
+            clearInterval(reload);
+            $.get('/qc_check_images_final', function(data) {
+            document.querySelector('p').innerHTML = data;
+            });
+        }
     }, 2000);
     </script>
 </div>

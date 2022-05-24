@@ -50,11 +50,6 @@ ALLOWED_EXTENSIONS = set(['h5',])
 FNAMES_H5 = []
 SUBJECT_LIST = []
 
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
 @app.before_first_request
 def create_all():
     db.create_all()
@@ -103,6 +98,12 @@ def register():
         print(msg.body)
         # mail.send(msg)
 
+        # Remove user from database if email is already present
+        if UserModel.query.filter_by(email=email).first():
+            user = UserModel.query.get(current_user.id)
+            db.session.delete(user)
+            db.session.commit()
+
         user = UserModel(email=email)
         user.set_token(token)
         db.session.add(user)
@@ -133,7 +134,7 @@ def xnat_qc_form():
 @login_required
 def xnat_upload_data():
     if request.method == 'POST':
-        if request.files:
+        if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             global FNAMES_H5
             # Save file in upload folder
             f = request.files['file']
@@ -165,6 +166,7 @@ def transfer_xnat():
             for file in files:
                 os.remove(os.path.join(root, file))
         return render_template('qc_check.html')
+    return render_template('qc_check.html')
 
 
 @app.route('/qc_check_images', methods=['GET', 'POST'])
@@ -172,14 +174,48 @@ def transfer_xnat():
 def xnat_qc_check_images():
     fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
     #qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
-    qc_files = ['meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif']
+    qc_files = ['meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
+                'meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
+                -1, 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif']
     for ind in range(len(qc_files)):
         if qc_files[ind] != -1:
             qc_files[ind] = os.path.basename(qc_files[ind])
 
     print(qc_files)
-    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files)
+    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=fname_qc, reload=1)
 
+
+@app.route('/qc_check_images_final', methods=['GET', 'POST'])
+@login_required
+def xnat_qc_check_images_final():
+    fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
+    #qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
+    qc_files = ['meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
+                'meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
+                -1, 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif']
+    for ind in range(len(qc_files)):
+        if qc_files[ind] != -1:
+            qc_files[ind] = os.path.basename(qc_files[ind])
+
+    print(fname_qc)
+    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=fname_qc, reload=0)
+
+@app.route('/submit', methods=['GET', 'POST'])
+@login_required
+def xnat_submit():
+    if request.method == "POST":
+        if 'cancel' in request.form:
+            return render_template('upload.html')
+        else:
+            print(request.form)
+            fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
+            committed_files = []
+            for ind in range(12): #range(len(fname_qc)):
+                if 'check'+str(ind) in request.form:
+                    committed_files.append('File ' + str(ind))
+                    print('uploading file ', ind)
+
+            return render_template('thank_you.html', nfiles=len(committed_files), files=committed_files)
 
 if __name__ == "__main__":
     app.run(host='localhost', port=5000, debug='on')
