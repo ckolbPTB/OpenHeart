@@ -47,6 +47,11 @@ def download_dcm_images(server_address, username, pw, subject_list, fname_qc_in,
 
         # Check if dicom exists
         if scan.resource('DICOM').exists():
+            # Make sure folder is empty
+            for root, dirs, files in os.walk(tmp_path):
+                for file in files:
+                    os.remove(os.path.join(root, file))
+
             # Download dicom and extract it
             fname_dcm_zip = scan.resource('DICOM').get(tmp_path)
 
