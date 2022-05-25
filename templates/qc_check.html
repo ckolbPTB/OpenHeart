@@ -25,7 +25,7 @@
             document.querySelector('p').innerHTML = data;
         });
         counter++;
-        if ((counter === 2) || (recon_done === 1)){
+        if ((counter === 10) || (recon_done === 1)){
             clearInterval(reload);
             $.get('/qc_check_images_final', function(data) {
             document.querySelector('p').innerHTML = data;

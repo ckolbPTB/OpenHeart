@@ -99,9 +99,9 @@ def register():
         # mail.send(msg)
 
         # Remove user from database if email is already present
-        if UserModel.query.filter_by(email=email).first():
-            user = UserModel.query.get(current_user.id)
-            db.session.delete(user)
+        prev_user = UserModel.query.filter_by(email=email).first()
+        if prev_user:
+            db.session.delete(prev_user)
             db.session.commit()
 
         user = UserModel(email=email)
@@ -173,15 +173,13 @@ def transfer_xnat():
 @login_required
 def xnat_qc_check_images():
     fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
-    #qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
-    qc_files = ['meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
-                'meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
-                -1, 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif']
+    qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
+    print(fname_qc)
+    print(qc_files)
     for ind in range(len(qc_files)):
         if qc_files[ind] != -1:
             qc_files[ind] = os.path.basename(qc_files[ind])
 
-    print(qc_files)
     return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=fname_qc, reload=1)
 
 
@@ -189,15 +187,11 @@ def xnat_qc_check_images():
 @login_required
 def xnat_qc_check_images_final():
     fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
-    #qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
-    qc_files = ['meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
-                'meas_MID65_2d_cart_bodycoil_sag_FID16991.gif', 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif',
-                -1, 'meas_MID66_2d_cart_bodycoil_cor_FID16992.gif', 'meas_MID62_2d_cart_bodycoil_trans_FID16988.gif']
+    qc_files = xnat_down.download_dcm_images(server_address, username, pw, SUBJECT_LIST, fname_qc, tmp_path_down, qc_im_path)
     for ind in range(len(qc_files)):
         if qc_files[ind] != -1:
             qc_files[ind] = os.path.basename(qc_files[ind])
 
-    print(fname_qc)
     return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=fname_qc, reload=0)
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -207,16 +201,14 @@ def xnat_submit():
         if 'cancel' in request.form:
             return render_template('upload.html')
         else:
-            print(request.form)
-            fname_qc = [x.replace('.h5', '') for x in FNAMES_H5]
             committed_files = []
-            for ind in range(12): #range(len(fname_qc)):
+            for ind in range(len(FNAMES_H5)):
                 if 'check'+str(ind) in request.form:
-                    committed_files.append('File ' + str(ind))
+                    committed_files.append(FNAMES_H5[ind])
                     print('uploading file ', ind)
 
             return render_template('thank_you.html', nfiles=len(committed_files), files=committed_files)
 
 if __name__ == "__main__":
-    app.run(host='localhost', port=5000, debug='on')
+    app.run(host='localhost', port=5006, debug='on')
 
