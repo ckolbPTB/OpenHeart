@@ -198,21 +198,6 @@ def xnat_qc_check_images():
     return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=raw_files, reload=reload_flag)
 
 
-@app.route('/qc_check_images_final', methods=['GET', 'POST'])
-@login_required
-def xnat_qc_check_images_final():
-    user = UserModel.query.get(current_user.id)
-    raw_files = [x.replace('.h5', '') for x in user.raw_file_list]
-    qc_files = xnat_down.download_dcm_images(server_address, username, pw, user.xnat_subject_list, raw_files, tmp_path,
-                                             app.config['UPLOAD_FOLDER'])
-
-    for ind in range(len(qc_files)):
-        if qc_files[ind] != -1:
-            qc_files[ind] = os.path.basename(qc_files[ind])
-
-    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=raw_files, reload=0)
-
-
 @app.route('/submit', methods=['GET', 'POST'])
 @login_required
 def xnat_submit():
@@ -248,3 +233,4 @@ def clean_up_user_files():
 
 if __name__ == "__main__":
     app.run(host='localhost', port=5007, debug='on')
+
