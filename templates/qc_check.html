@@ -24,8 +24,16 @@
         $.get('/qc_check_images', function(data) {
             document.querySelector('p').innerHTML = data;
         });
+
+        if (counter > 0) {
+            var elem = document.getElementsByName("recon_flag");
+            if (elem[0].id === "0") {
+                recon_done = 1;
+            }
+        }
+
         counter++;
-        if ((counter === 10) || (recon_done === 1)){
+        if ((counter === 20) || (recon_done === 1)){
             clearInterval(reload);
             $.get('/qc_check_images_final', function(data) {
             document.querySelector('p').innerHTML = data;
