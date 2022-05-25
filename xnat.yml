@@ -13,6 +13,7 @@ dependencies:
     - flask
     - flask-mail
     - flask-sqlalchemy
+    - sqlalchemy-mutable
     - flask-login
     - pydicom
     - ismrmrd

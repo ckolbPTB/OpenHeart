@@ -5,15 +5,12 @@ import os, shutil, glob
 import ismrmrd
 import utils
 
-def upload_raw_mr(server_address, username, pw, data_path, tmp_path):
+def upload_raw_mr(server_address, username, pw, raw_path, raw_files, tmp_path):
     experiment_date = '2022-05-04'
     scan_id = 'cart_cine_scan'
 
     project_name = 'mri-cine-raw'
     subject_list = []
-
-    # Get raw data
-    raw_files = [os.path.basename(x) for x in glob.glob(data_path + '/*.h5')]
 
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
@@ -27,7 +24,7 @@ def upload_raw_mr(server_address, username, pw, data_path, tmp_path):
     # Upload each raw data file
     for ind in range(len(raw_files)):
         # Copy each file to temp folder
-        shutil.copyfile(data_path + raw_files[ind], tmp_path + raw_files[ind])
+        shutil.copyfile(raw_path + raw_files[ind], tmp_path + raw_files[ind])
 
         # Verify subject does not exist
         time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
