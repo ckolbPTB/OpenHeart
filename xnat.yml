@@ -9,7 +9,6 @@ dependencies:
   - imageio
   - matplotlib
   - pip:
-    - pyxnat
     - flask
     - flask-mail
     - flask-sqlalchemy
@@ -17,6 +16,7 @@ dependencies:
     - flask-login
     - pydicom
     - ismrmrd
+    - git+https://github.com/ckolbPTB/pyxnat.git@share_primary
 
   
     

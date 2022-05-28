@@ -124,12 +124,6 @@ def logout():
     return redirect('/')
 
 
-@app.route('/check', methods=['GET', 'POST'])
-@login_required
-def check():
-    return render_template('check.html')
-
-
 @app.route('/uploader', methods=['POST'])
 @login_required
 def uploader():
@@ -185,16 +179,16 @@ def check_images():
     reload_flag = 0
     user = UserModel.query.get(current_user.id)
     raw_files = [x.replace('.h5', '') for x in user.raw_file_list]
-    qc_files = xnat.download_dcm_images(server_address, username, pw, user.xnat_subject_list, raw_files, tmp_path,
+    check_files = xnat.download_dcm_images(server_address, username, pw, user.xnat_subject_list, raw_files, tmp_path,
                                              app.config['UPLOAD_FOLDER'])
 
-    for ind in range(len(qc_files)):
-        if qc_files[ind] != -1:
-            qc_files[ind] = os.path.basename(qc_files[ind])
+    for ind in range(len(check_files)):
+        if check_files[ind] != -1:
+            check_files[ind] = os.path.basename(check_files[ind])
         else:
             reload_flag = 1
 
-    return render_template('check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=raw_files, reload=reload_flag)
+    return render_template('check_images.html', nfiles=len(check_files), files=check_files, raw_files=raw_files, reload=reload_flag)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -206,15 +200,21 @@ def submit():
         if 'cancel' in request.form:
             return redirect('/')
         else:
-            committed_files = []
+            commit_files = []
+            commit_subjects = []
+            delete_subjects = []
             raw_file_list_display = [x.replace(user.path_id, '') for x in user.raw_file_list]
             for ind in range(len(raw_file_list_display)):
                 if 'check'+str(ind) in request.form:
-                    committed_files.append(raw_file_list_display[ind])
-                    print('uploading file ', ind)
+                    commit_files.append(raw_file_list_display[ind])
+                    commit_subjects.append(user.xnat_subject_list[ind])
+                else:
+                    delete_subjects.append(user.xnat_subject_list[ind])
 
+            xnat.commit_to_open(server_address, username, pw, commit_subjects)
+            xnat.delete_from_vault(server_address, username, pw, delete_subjects)
             clean_up_user_files()
-            return render_template('thank_you.html', nfiles=len(committed_files), files=committed_files)
+            return render_template('thank_you.html', nfiles=len(commit_files), files=commit_files)
 
 
 def clean_up_user_files():
@@ -232,4 +232,3 @@ def clean_up_user_files():
 
 if __name__ == "__main__":
     app.run(host='localhost', port=5007, debug='on')
-
