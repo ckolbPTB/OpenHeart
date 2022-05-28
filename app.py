@@ -8,8 +8,7 @@ from datetime import datetime
 
 import sys
 sys.path.append('./utils/')
-import xnat_upload as xnat_up
-import xnat_download as xnat_down
+import xnat
 from user import UserModel, db, login
 
 server_address = 'http://release.xnat.org'
@@ -31,7 +30,7 @@ db.init_app(app)
 login.init_app(app)
 login.login_view = 'register'
 
-app.config['MAIL_SERVER']='smtp.gmail.com'
+app.config['MAIL_SERVER'] ='smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
@@ -47,7 +46,7 @@ def create_all():
 
 @app.route('/', methods=['GET', 'POST'])
 @login_required
-def xnat_upload_form():
+def upload():
     clean_up_user_files()
     return render_template('upload.html')
 
@@ -125,15 +124,15 @@ def logout():
     return redirect('/')
 
 
-@app.route('/qc_check', methods=['GET', 'POST'])
+@app.route('/check', methods=['GET', 'POST'])
 @login_required
-def xnat_qc_form():
-    return render_template('qc_check.html')
+def check():
+    return render_template('check.html')
 
 
 @app.route('/uploader', methods=['POST'])
 @login_required
-def xnat_upload_data():
+def uploader():
     if request.method == 'POST':
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             # Get user path id
@@ -165,28 +164,28 @@ def xnat_upload_data():
     return render_template('upload.html')
 
 
-@app.route('/transfer_xnat', methods=["GET", "POST"])
+@app.route('/check', methods=["GET", "POST"])
 @login_required
-def transfer_xnat():
+def check():
     if request.method == "POST":
         user = UserModel.query.get(current_user.id)
 
-        subject_list = xnat_up.upload_raw_mr(server_address, username, pw, app.config['UPLOAD_FOLDER'], user.raw_file_list, tmp_path)
+        subject_list = xnat.upload_raw_mr(server_address, username, pw, app.config['UPLOAD_FOLDER'], user.raw_file_list, tmp_path)
 
         user.xnat_subject_list = subject_list
         db.session.commit()
 
-        return render_template('qc_check.html')
-    return render_template('qc_check.html')
+        return render_template('check.html')
+    return render_template('check.html')
 
 
-@app.route('/qc_check_images', methods=['GET', 'POST'])
+@app.route('/check_images', methods=['GET', 'POST'])
 @login_required
-def xnat_qc_check_images():
+def check_images():
     reload_flag = 0
     user = UserModel.query.get(current_user.id)
     raw_files = [x.replace('.h5', '') for x in user.raw_file_list]
-    qc_files = xnat_down.download_dcm_images(server_address, username, pw, user.xnat_subject_list, raw_files, tmp_path,
+    qc_files = xnat.download_dcm_images(server_address, username, pw, user.xnat_subject_list, raw_files, tmp_path,
                                              app.config['UPLOAD_FOLDER'])
 
     for ind in range(len(qc_files)):
@@ -195,12 +194,12 @@ def xnat_qc_check_images():
         else:
             reload_flag = 1
 
-    return render_template('qc_check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=raw_files, reload=reload_flag)
+    return render_template('check_images.html', nfiles=len(qc_files), files=qc_files, raw_files=raw_files, reload=reload_flag)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
 @login_required
-def xnat_submit():
+def submit():
     if request.method == "POST":
         user = UserModel.query.get(current_user.id)
 
