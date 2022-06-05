@@ -44,7 +44,27 @@ def create_all():
     db.create_all()
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
+def welcome():
+    return render_template('welcome.html')
+
+
+@app.route('/tutorial_video', methods=['GET'])
+def tutorial_video():
+    return render_template('tutorial_video.html')
+
+
+@app.route('/ismrmrd_tools', methods=['GET'])
+def ismrmrd_tools():
+    return render_template('ismrmrd_tools.html')
+
+
+@app.route('/terms_conds', methods=['GET'])
+def terms_conds():
+    return render_template('terms_conds.html')
+
+
+@app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
     clean_up_user_files()
@@ -54,7 +74,7 @@ def upload():
 @app.route('/login/<email>', methods=['POST', 'GET'])
 def login(email):
     if current_user.is_authenticated:
-        return redirect('/')
+        return redirect('/upload')
 
     if request.method == 'POST':
         # Get email address
@@ -72,7 +92,7 @@ def login(email):
             db.session.commit()
 
             login_user(user)
-            return redirect('/')
+            return redirect('/upload')
 
     return render_template('login.html', user_email=email)
 
@@ -80,7 +100,7 @@ def login(email):
 @app.route('/register', methods=['POST', 'GET'])
 def register():
     if current_user.is_authenticated:
-        return redirect('/')
+        return redirect('/upload')
 
     if request.method == 'POST':
         # Get email address
@@ -198,7 +218,7 @@ def submit():
         user = UserModel.query.get(current_user.id)
 
         if 'cancel' in request.form:
-            return redirect('/')
+            return redirect('/upload')
         else:
             commit_files = []
             commit_subjects = []
