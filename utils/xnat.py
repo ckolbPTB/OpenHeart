@@ -7,11 +7,10 @@ from zipfile import ZipFile
 
 project_name = 'Vault4'
 project_name_open = 'Open'
-scan_id = 'cart_cine_scan'
 
-def upload_raw_mr(server_address, username, pw, raw_path, raw_files, tmp_path):
+def upload_raw_mr(server_address, username, pw, raw_path, subject_list, tmp_path):
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
-    subject_list = []
+    xnat_subject_list = []
 
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
@@ -23,10 +22,7 @@ def upload_raw_mr(server_address, username, pw, raw_path, raw_files, tmp_path):
         raise NameError(f'Project {project_name} not available on server.')
 
     # Upload each raw data file
-    for ind in range(len(raw_files)):
-        # Copy each file to temp folder
-        shutil.copyfile(raw_path + raw_files[ind], tmp_path + raw_files[ind])
-
+    for ind in range(len(subject_list)):
         # Verify subject does not exist
         time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
         subject_id = 'Subj-' + time_id
@@ -35,7 +31,8 @@ def upload_raw_mr(server_address, username, pw, raw_path, raw_files, tmp_path):
             xnat_server.disconnect()
             raise NameError(f'Subject {subject_id} already exists.')
         else:
-            subject_list.append(subject_id)
+            # Append list [subject name, number of scans]
+            xnat_subject_list.append([subject_id, subject_list[ind][1]])
 
         # Add exam
         experiment_id = 'Exp-' + time_id
@@ -48,33 +45,45 @@ def upload_raw_mr(server_address, username, pw, raw_path, raw_files, tmp_path):
                 **{'experiments': 'xnat:mrSessionData',
                    'xnat:mrSessionData/date': experiment_date})
 
-        # Add scan
-        scan = experiment.scan(scan_id)
-        if scan.exists():
-            print(f'Scan {scan_id} already exists')
-        else:
-            # Get ISMRMRD header to populate MrScanData fields
-            dset = ismrmrd.Dataset(tmp_path + raw_files[ind], 'dataset', create_if_needed=False)
-            header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-            xnat_hdr = utils.ismrmrd_2_xnat(header)
-            dset.close()
+        # Add all scans
+        for snd in range(subject_list[ind][1]):
+            scan_id = 'Scan_' + str(snd)
+            scan = experiment.scan(scan_id)
+            if scan.exists():
+                print(f'Scan {scan_id} already exists')
+            else:
+                # Current raw data file and folder
+                raw_folder = subject_list[ind][0]
+                raw_file = subject_list[ind][snd+2]
 
-            scan.create(**xnat_hdr)
-            scan_resource = scan.resource('MR_RAW')
-            scan_resource.put_dir(tmp_path, format='HDF5', label='MR_RAW',
-                                  content='RAW', **{'xsi:type': 'xnat:mrScanData'})
+                # Copy each file to temp folder
+                shutil.copyfile(os.path.join(raw_path, raw_folder, raw_file), os.path.join(tmp_path, raw_file))
 
-            # Remove uploaded file
-            os.remove(tmp_path + raw_files[ind])
+                # Get ISMRMRD header to populate MrScanData fields
+                dset = ismrmrd.Dataset(os.path.join(tmp_path, raw_file), 'dataset', create_if_needed=False)
+                header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
+                xnat_hdr = utils.ismrmrd_2_xnat(header)
+                dset.close()
+
+                scan.create(**xnat_hdr)
+                scan_resource = scan.resource('MR_RAW')
+                scan_resource.put_dir(tmp_path, format='HDF5', label='MR_RAW',
+                                      content='RAW', **{'xsi:type': 'xnat:mrScanData'})
+
+                # Remove uploaded file
+                os.remove(os.path.join(tmp_path, raw_file))
 
     xnat_server.disconnect()
     print('Data was uploaded!')
-    return(subject_list)
+    return(xnat_subject_list)
 
 
-def download_dcm_images(server_address, username, pw, subject_list, fname_qc_in, tmp_path, qc_im_path):
+def download_dcm_images(server_address, username, pw, xnat_subject_list, subject_list, tmp_path, qc_im_path):
 
-    fname_qc_out = [-1]*len(subject_list)
+    # Create a list for each subject, -1 = dicom image not yet received
+    fname_qc_out = []
+    for ind in range(len(xnat_subject_list)):
+        fname_qc_out.append([-1]*len(xnat_subject_list[ind][1]))
 
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
@@ -86,53 +95,55 @@ def download_dcm_images(server_address, username, pw, subject_list, fname_qc_in,
         raise NameError(f'Project {project_name} not available on server.')
 
     # Get dicom of each subject
-    for ind in range(len(subject_list)):
+    for ind in range(len(xnat_subject_list)):
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(subject_list[ind])
+        xnat_subject = xnat_project.subject(xnat_subject_list[ind][0])
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {subject_list[ind]} does not exist.')
+            raise NameError(f'Subject {xnat_subject_list[ind]} does not exist.')
 
-        experiment_id = subject_list[ind].replace('Subj', 'Exp')
+        experiment_id = xnat_subject_list[ind][0].replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()
             raise NameError(f'Experiment {experiment_id} does not exist.')
 
-        # Select scan
-        scan = experiment.scan(scan_id)
-        if not scan.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Scan {scan_id} does not exist.')
+        # Add all scans
+        for snd in range(xnat_subject_list[ind][1]):
+            scan_id = 'Scan_' + str(snd)
+            scan = experiment.scan(scan_id)
+            if not scan.exists():
+                xnat_server.disconnect()
+                raise NameError(f'Scan {scan_id} does not exist.')
 
-        # Check if dicom exists
-        if scan.resource('DICOM').exists():
-            # Make sure folder is empty
-            for root, dirs, files in os.walk(tmp_path):
-                for file in files:
-                    os.remove(os.path.join(root, file))
+            # Check if dicom exists
+            if scan.resource('DICOM').exists():
+                # Make sure folder is empty
+                for root, dirs, files in os.walk(tmp_path):
+                    for file in files:
+                        os.remove(os.path.join(root, file))
 
-            # Download dicom and extract it
-            fname_dcm_zip = scan.resource('DICOM').get(tmp_path)
+                # Download dicom and extract it
+                fname_dcm_zip = scan.resource('DICOM').get(tmp_path)
 
-            with ZipFile(fname_dcm_zip, 'r') as zip:
-                zip.extractall(tmp_path)
+                with ZipFile(fname_dcm_zip, 'r') as zip:
+                    zip.extractall(tmp_path)
 
-            # Create gif
-            qc_im_full_filename = utils.create_qc_gif(tmp_path, qc_im_path, fname_qc_in[ind])
-            print(f'QC image {qc_im_full_filename} created')
+                # Create gif
+                qc_im_full_filename = utils.create_qc_gif(tmp_path, qc_im_path, subject_list[ind][snd+2].replace('.h5', ''))
+                print(f'QC image {qc_im_full_filename} created')
 
-            fname_qc_out[ind] = qc_im_full_filename
+                fname_qc_out[ind][snd] = qc_im_full_filename
 
-            # Delete all files in the tmp folder
-            for root, dirs, files in os.walk(tmp_path):
-                for file in files:
-                    os.remove(os.path.join(root, file))
+                # Delete all files in the tmp folder
+                for root, dirs, files in os.walk(tmp_path):
+                    for file in files:
+                        os.remove(os.path.join(root, file))
 
     return(fname_qc_out)
 
 
-def commit_to_open(server_address, username, pw, subject_list):
+def commit_to_open(server_address, username, pw, xnat_subject_list):
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
 
@@ -142,14 +153,14 @@ def commit_to_open(server_address, username, pw, subject_list):
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
 
-    for ind in range(len(subject_list)):
+    for ind in range(len(xnat_subject_list)):
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(subject_list[ind])
+        xnat_subject = xnat_project.subject(xnat_subject_list[ind][0])
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {subject_list[ind]} does not exist.')
+            raise NameError(f'Subject {xnat_subject_list[ind][0]} does not exist.')
 
-        experiment_id = subject_list[ind].replace('Subj', 'Exp')
+        experiment_id = xnat_subject_list[ind][0].replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()
@@ -163,7 +174,7 @@ def commit_to_open(server_address, username, pw, subject_list):
     return(True)
 
 
-def delete_from_vault(server_address, username, pw, subject_list):
+def delete_from_vault(server_address, username, pw, xnat_subject_list):
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
 
@@ -173,14 +184,14 @@ def delete_from_vault(server_address, username, pw, subject_list):
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
 
-    for ind in range(len(subject_list)):
+    for ind in range(len(xnat_subject_list)):
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(subject_list[ind])
+        xnat_subject = xnat_project.subject(xnat_subject_list[ind][0])
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {subject_list[ind]} does not exist.')
+            raise NameError(f'Subject {xnat_subject_list[ind][0]} does not exist.')
 
-        experiment_id = subject_list[ind].replace('Subj', 'Exp')
+        experiment_id = xnat_subject_list[ind][0].replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()

@@ -14,7 +14,8 @@ class UserModel(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String, unique=True)
     path_id = db.Column(db.String, unique=True)
-    raw_file_list = db.Column(MutablePickleType)
+    subject_list = db.Column(MutablePickleType)
+    subject_list_display = db.Column(MutablePickleType)
     xnat_subject_list = db.Column(MutablePickleType)
     token_hash = db.Column(db.String())
 

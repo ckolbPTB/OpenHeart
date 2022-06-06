@@ -165,15 +165,33 @@ def uploader():
                     zip_info.filename = user_path_id+zip_info.filename
                     zip.extract(zip_info, path=app.config['UPLOAD_FOLDER'])
 
-            # Get all .h5 files with user_path_id for processing and without for display
-            raw_file_list = [os.path.basename(x) for x in glob.glob(os.path.join(
-                app.config['UPLOAD_FOLDER'], user_path_id) + '*.h5')]
-            raw_file_list_display = [x.replace(user_path_id, '') for x in raw_file_list]
+            # Get all the subfolders in the extracted archive which represent different subjects
+            subject_folders = [d for d in os.listdir(os.path.join(app.config['UPLOAD_FOLDER'])) if
+                               os.path.isdir(os.path.join(app.config['UPLOAD_FOLDER'], d))]
+            subject_folders_display = [x.replace(user_path_id, '') for x in subject_folders]
+
+            # Create dictionary with the raw data files of each subject
+            subject_list = []
+            subject_list_display = []
+            for ind in range(len(subject_folders)):
+                # Get all .h5 files in this folder
+                clist = [os.path.basename(x) for x in glob.glob(os.path.join(app.config['UPLOAD_FOLDER'], subject_folders[ind], '*.h5'))]
+                clist_display = [x.replace(user_path_id, '') for x in clist]
+
+                # Create a list for each subject with [subject name, number of files, raw data filenames]
+                clist.insert(0, len(clist))
+                clist.insert(0, subject_folders[ind])
+                subject_list.append(clist)
+
+                clist_display.insert(0, len(clist_display))
+                clist_display.insert(0, subject_folders_display[ind])
+                subject_list_display.append(clist_display)
 
             user = UserModel.query.get(current_user.id)
-            user.raw_file_list = raw_file_list
+            user.subject_list = subject_list
+            user.subject_list_display = subject_list_display
             db.session.commit()
-            return render_template('upload_summary.html', files=raw_file_list_display, nfiles=len(raw_file_list_display))
+            return render_template('upload_summary.html', files=subject_list_display, nfiles=len(subject_list_display))
 
     return render_template('upload.html')
 
@@ -184,9 +202,9 @@ def check():
     if request.method == "POST":
         user = UserModel.query.get(current_user.id)
 
-        subject_list = xnat.upload_raw_mr(server_address, username, pw, app.config['UPLOAD_FOLDER'], user.raw_file_list, tmp_path)
+        xnat_subject_list = xnat.upload_raw_mr(server_address, username, pw, app.config['UPLOAD_FOLDER'], user.subject_list, tmp_path)
 
-        user.xnat_subject_list = subject_list
+        user.xnat_subject_list = xnat_subject_list
         db.session.commit()
 
         return render_template('check.html')
@@ -198,17 +216,22 @@ def check():
 def check_images():
     reload_flag = 0
     user = UserModel.query.get(current_user.id)
-    raw_files = [x.replace('.h5', '') for x in user.raw_file_list]
-    check_files = xnat.download_dcm_images(server_address, username, pw, user.xnat_subject_list, raw_files, tmp_path,
-                                             app.config['UPLOAD_FOLDER'])
+    check_files = xnat.download_dcm_images(server_address, username, pw, user.xnat_subject_list, user.subject_list,
+                                           tmp_path, app.config['UPLOAD_FOLDER'])
 
+    raw_files_html = []
+    check_files_html = []
     for ind in range(len(check_files)):
-        if check_files[ind] != -1:
-            check_files[ind] = os.path.basename(check_files[ind])
-        else:
-            reload_flag = 1
+        for snd in range(len(check_files[ind])):
+            if check_files[ind][snd] != -1:
+                check_files_html.append(os.path.basename(check_files[ind][snd]))
+            else:
+                check_files_html.append(-1)
+                reload_flag = 1
+            raw_files_html.append(user.xnat_subject_list_display[ind][snd+2])
 
-    return render_template('check_images.html', nfiles=len(check_files), files=check_files, raw_files=raw_files, reload=reload_flag)
+    return render_template('check_images.html', nfiles=len(check_files_html), files=check_files_html,
+                           raw_files=raw_files_html, reload=reload_flag)
 
 
 @app.route('/submit', methods=['GET', 'POST'])

@@ -15,11 +15,16 @@
 
     <div class="row align-items-center mt-5">
         <div class="col-6 offset-2">
-        <ol>
         {%for i in range(0, nfiles)%}
-            <li>{{files[i]}}</li>
+            <p class="lead">
+              {{files[i][0]}}
+            </p>
+            <ol>
+            {%for j in range(0, files[i][1])%}
+                <li>{{files[i][j+2]}}</li>
+            {%endfor%}
+            </ol>
         {%endfor%}
-        </ol>
         </div>
     </div>
 
