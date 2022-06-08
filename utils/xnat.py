@@ -83,7 +83,7 @@ def download_dcm_images(server_address, username, pw, xnat_subject_list, subject
     # Create a list for each subject, -1 = dicom image not yet received
     fname_qc_out = []
     for ind in range(len(xnat_subject_list)):
-        fname_qc_out.append([-1]*len(xnat_subject_list[ind][1]))
+        fname_qc_out.append([-1]*xnat_subject_list[ind][1])
 
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
@@ -100,7 +100,7 @@ def download_dcm_images(server_address, username, pw, xnat_subject_list, subject
         xnat_subject = xnat_project.subject(xnat_subject_list[ind][0])
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {xnat_subject_list[ind]} does not exist.')
+            raise NameError(f'Subject {xnat_subject_list[ind][0]} does not exist.')
 
         experiment_id = xnat_subject_list[ind][0].replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
@@ -140,6 +140,7 @@ def download_dcm_images(server_address, username, pw, xnat_subject_list, subject
                     for file in files:
                         os.remove(os.path.join(root, file))
 
+    xnat_server.disconnect()
     return(fname_qc_out)
 
 
@@ -155,12 +156,12 @@ def commit_to_open(server_address, username, pw, xnat_subject_list):
 
     for ind in range(len(xnat_subject_list)):
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(xnat_subject_list[ind][0])
+        xnat_subject = xnat_project.subject(xnat_subject_list[ind])
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {xnat_subject_list[ind][0]} does not exist.')
+            raise NameError(f'Subject {xnat_subject_list[ind]} does not exist.')
 
-        experiment_id = xnat_subject_list[ind][0].replace('Subj', 'Exp')
+        experiment_id = xnat_subject_list[ind].replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()
@@ -186,12 +187,12 @@ def delete_from_vault(server_address, username, pw, xnat_subject_list):
 
     for ind in range(len(xnat_subject_list)):
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(xnat_subject_list[ind][0])
+        xnat_subject = xnat_project.subject(xnat_subject_list[ind])
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {xnat_subject_list[ind][0]} does not exist.')
+            raise NameError(f'Subject {xnat_subject_list[ind]} does not exist.')
 
-        experiment_id = xnat_subject_list[ind][0].replace('Subj', 'Exp')
+        experiment_id = xnat_subject_list[ind].replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()

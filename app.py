@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from zipfile import ZipFile
 import os, os.path, glob, random
 from datetime import datetime
+import shutil
 
 import sys
 sys.path.append('./utils/')
@@ -165,9 +166,17 @@ def uploader():
                     zip_info.filename = user_path_id+zip_info.filename
                     zip.extract(zip_info, path=app.config['UPLOAD_FOLDER'])
 
+            # Delete folders without any h5 files
+            for root, dirs, files in os.walk(app.config['UPLOAD_FOLDER']):
+                for dir in dirs:
+                    if user_path_id in dir:
+                        h5_files = glob.glob(os.path.join(root, dir, '*.h5'))
+                        if len(h5_files) == 0:
+                            shutil.rmtree(os.path.join(root, dir))
+
             # Get all the subfolders in the extracted archive which represent different subjects
             subject_folders = [d for d in os.listdir(os.path.join(app.config['UPLOAD_FOLDER'])) if
-                               os.path.isdir(os.path.join(app.config['UPLOAD_FOLDER'], d))]
+                               os.path.isdir(os.path.join(app.config['UPLOAD_FOLDER'], d)) and user_path_id in d]
             subject_folders_display = [x.replace(user_path_id, '') for x in subject_folders]
 
             # Create dictionary with the raw data files of each subject
@@ -210,12 +219,13 @@ def check():
         return render_template('check.html')
     return render_template('check.html')
 
-
 @app.route('/check_images', methods=['GET', 'POST'])
 @login_required
 def check_images():
     reload_flag = 0
     user = UserModel.query.get(current_user.id)
+    print(user.xnat_subject_list)
+    print(user.subject_list)
     check_files = xnat.download_dcm_images(server_address, username, pw, user.xnat_subject_list, user.subject_list,
                                            tmp_path, app.config['UPLOAD_FOLDER'])
 
@@ -228,7 +238,7 @@ def check_images():
             else:
                 check_files_html.append(-1)
                 reload_flag = 1
-            raw_files_html.append(user.xnat_subject_list_display[ind][snd+2])
+            raw_files_html.append(user.subject_list_display[ind][snd+2])
 
     return render_template('check_images.html', nfiles=len(check_files_html), files=check_files_html,
                            raw_files=raw_files_html, reload=reload_flag)
@@ -243,16 +253,28 @@ def submit():
         if 'cancel' in request.form:
             return redirect('/upload')
         else:
+            raw_file_list = []
+            raw_subject_list = []
+            print(user.xnat_subject_list)
+            for ind in range(len(user.subject_list_display)):
+                for snd in range(user.subject_list_display[ind][1]):
+                    raw_file_list.append(user.subject_list_display[ind][snd + 2])
+                    raw_subject_list.append(user.xnat_subject_list[ind][0])
+
             commit_files = []
             commit_subjects = []
             delete_subjects = []
-            raw_file_list_display = [x.replace(user.path_id, '') for x in user.raw_file_list]
+            raw_file_list_display = [x.replace(user.path_id, '') for x in raw_file_list]
             for ind in range(len(raw_file_list_display)):
                 if 'check'+str(ind) in request.form:
                     commit_files.append(raw_file_list_display[ind])
-                    commit_subjects.append(user.xnat_subject_list[ind])
+                    commit_subjects.append(raw_subject_list[ind])
                 else:
-                    delete_subjects.append(user.xnat_subject_list[ind])
+                    delete_subjects.append(raw_subject_list[ind])
+
+            # Remove duplicates
+            delete_subjects = list(set(delete_subjects))
+            commit_subjects = list(set(commit_subjects) - set(delete_subjects))
 
             xnat.commit_to_open(server_address, username, pw, commit_subjects)
             xnat.delete_from_vault(server_address, username, pw, delete_subjects)
@@ -264,14 +286,19 @@ def clean_up_user_files():
     user = UserModel.query.get(current_user.id)
     user_path_id = user.path_id
 
-    # Delete all files created by this user
-    for root, dirs, files in os.walk(app.config['UPLOAD_FOLDER']):
-        user_file_list = [os.path.basename(x) for x in glob.glob(os.path.join(app.config['UPLOAD_FOLDER'], user_path_id) + '*.*')]
-        for file in user_file_list:
-            os.remove(os.path.join(root, file))
+    # Delete all files and folders created by this user
+    for files in os.listdir(app.config['UPLOAD_FOLDER']):
+        path_or_file = os.path.join(app.config['UPLOAD_FOLDER'], files)
+        if user_path_id in path_or_file:
+            try:
+                shutil.rmtree(path_or_file)
+            except OSError:
+                os.remove(path_or_file)
 
     return(True)
 
 
 if __name__ == "__main__":
-    app.run(host='localhost', port=5007, debug='on')
+    app.run(host='localhost', port=5001, debug='on')
+
+
