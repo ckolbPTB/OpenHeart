@@ -10,7 +10,8 @@ import shutil
 import sys
 sys.path.append('./utils/')
 import xnat
-from user import UserModel, db, login
+from user import UserModel, DataModel, db, login
+import uuid
 
 server_address = 'http://release.xnat.org'
 username = 'admin'
@@ -86,10 +87,16 @@ def login(email):
         if user is not None and user.check_token(request.form['UserToken']):
             # Create path id for user
             time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
-            user_path_id = 'user' + str(user.id) + '_' + time_id + '_'
+            user_id = 'user' + str(user.id) + '_' + time_id + '_'
 
             # Add path id to database
-            user.path_id = user_path_id
+            print(user_id)
+            user.user_id = user_id
+            db.session.commit()
+
+            # Create database for scans
+            user_data = DataModel(user_name=user_id)
+            db.session.add(user_data)
             db.session.commit()
 
             login_user(user)
@@ -159,48 +166,27 @@ def uploader():
             f_name = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(user_path_id + f.filename))
             f.save(f_name)
 
+            # Get info from database
+            user = UserModel.query.get(current_user.id)
+            user_data = DataModel.query.get(user_id=user.user_id)
+
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
                 zip_info_list = zip.infolist()
+                # Go through list of files and folders and add h5 files
                 for zip_info in zip_info_list:
-                    zip_info.filename = user_path_id+zip_info.filename
-                    zip.extract(zip_info, path=app.config['UPLOAD_FOLDER'])
+                    if not zip_info.is_dir():
+                        cpath, cfile = os.path.split(zip_info.filename)
+                        if os.path.splitext(cfile)[1] == '.h5':
+                            user_data.add_scan(cpath, cfile)
+                            cfile_name = str(uuid.uuid4())
+                            user_data.add_raw_data(cpath, cfile, cfile_name)
+                            zip_info.filename = cfile_name + '.h5'
+                            zip.extract(zip_info, path=app.config['UPLOAD_FOLDER'])
 
-            # Delete folders without any h5 files
-            for root, dirs, files in os.walk(app.config['UPLOAD_FOLDER']):
-                for dir in dirs:
-                    if user_path_id in dir:
-                        h5_files = glob.glob(os.path.join(root, dir, '*.h5'))
-                        if len(h5_files) == 0:
-                            shutil.rmtree(os.path.join(root, dir))
 
-            # Get all the subfolders in the extracted archive which represent different subjects
-            subject_folders = [d for d in os.listdir(os.path.join(app.config['UPLOAD_FOLDER'])) if
-                               os.path.isdir(os.path.join(app.config['UPLOAD_FOLDER'], d)) and user_path_id in d]
-            subject_folders_display = [x.replace(user_path_id, '') for x in subject_folders]
-
-            # Create dictionary with the raw data files of each subject
-            subject_list = []
-            subject_list_display = []
-            for ind in range(len(subject_folders)):
-                # Get all .h5 files in this folder
-                clist = [os.path.basename(x) for x in glob.glob(os.path.join(app.config['UPLOAD_FOLDER'], subject_folders[ind], '*.h5'))]
-                clist_display = [x.replace(user_path_id, '') for x in clist]
-
-                # Create a list for each subject with [subject name, number of files, raw data filenames]
-                clist.insert(0, len(clist))
-                clist.insert(0, subject_folders[ind])
-                subject_list.append(clist)
-
-                clist_display.insert(0, len(clist_display))
-                clist_display.insert(0, subject_folders_display[ind])
-                subject_list_display.append(clist_display)
-
-            user = UserModel.query.get(current_user.id)
-            user.subject_list = subject_list
-            user.subject_list_display = subject_list_display
             db.session.commit()
-            return render_template('upload_summary.html', files=subject_list_display, nfiles=len(subject_list_display))
+            return render_template('upload_summary.html', files=user_data.get_subjects(), nfiles=len(user_data.get_subjects()))
 
     return render_template('upload.html')
 
@@ -284,12 +270,12 @@ def submit():
 
 def clean_up_user_files():
     user = UserModel.query.get(current_user.id)
-    user_path_id = user.path_id
+    user_id = user.user_id
 
     # Delete all files and folders created by this user
     for files in os.listdir(app.config['UPLOAD_FOLDER']):
         path_or_file = os.path.join(app.config['UPLOAD_FOLDER'], files)
-        if user_path_id in path_or_file:
+        if user_id in path_or_file:
             try:
                 shutil.rmtree(path_or_file)
             except OSError:
@@ -300,5 +286,3 @@ def clean_up_user_files():
 
 if __name__ == "__main__":
     app.run(host='localhost', port=5001, debug='on')
-
-
