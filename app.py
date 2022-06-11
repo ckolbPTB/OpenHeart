@@ -198,12 +198,10 @@ def check():
 @app.route('/check_images', methods=['GET', 'POST'])
 @login_required
 def check_images():
-    reload_flag = 0
     user = UserModel.query.get(current_user.id)
     user = xnat.download_dcm_images(server_address, username, pw, user, tmp_path, app.config['UPLOAD_FOLDER'])
     db.session.commit()
-
-    return render_template('check_images.html', cuser=user, reload=user.are_all_subjects_reconstructed())
+    return render_template('check_images.html', cuser=user, reload=(user.are_all_subjects_reconstructed()==False))
 
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -219,9 +217,9 @@ def submit():
             delete_subjects = []
             for ind in range(user.get_num_xnat_subjects()):
                 if 'check'+str(ind) in request.form:
-                    commit_subjects.append(user.get_xnat_subjects[ind])
+                    commit_subjects.append(user.get_xnat_subjects()[ind])
                 else:
-                    delete_subjects.append(user.get_xnat_subjects[ind])
+                    delete_subjects.append(user.get_xnat_subjects()[ind])
 
             xnat.commit_to_open(server_address, username, pw, commit_subjects)
             xnat.delete_from_vault(server_address, username, pw, delete_subjects)
@@ -260,4 +258,3 @@ def clean_up_user_files():
 
 if __name__ == "__main__":
     app.run(host='localhost', port=5001, debug='on')
-

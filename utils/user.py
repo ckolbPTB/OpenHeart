@@ -101,17 +101,17 @@ class UserModel(UserMixin, db.Model):
     def get_num_scans(self, subject):
         return(len(self.scans[subject]))
 
-    def get_xcat_subjects(self):
-        return(self.xcat_subjects)
+    def get_xnat_subjects(self):
+        return(self.xnat_subjects)
 
-    def get_num_xcat_subjects(self):
-        return(len(self.xcat_subjects))
+    def get_num_xnat_subjects(self):
+        return(len(self.xnat_subjects))
 
-    def get_xcat_scans(self, xcat_subject):
-        return(self.xcat_scans[xcat_subject])
+    def get_xnat_scans(self, xnat_subject):
+        return(self.xnat_scans[xnat_subject])
 
-    def get_num_xcat_scans(self, xcat_subject):
-        return(len(self.xcat_scans[xcat_subject]))
+    def get_num_xnat_scans(self, xnat_subject):
+        return(len(self.xnat_scans[xnat_subject]))
  
  
 @login.user_loader

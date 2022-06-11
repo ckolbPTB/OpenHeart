@@ -26,8 +26,8 @@
         });
 
         if (counter > 0) {
-            var elem = document.getElementsByName("recon_flag");
-            if (elem[0].id === "0") {
+            var elem = document.querySelector('[title="recon_flag"]')
+            if (elem.id === "True") {
                 recon_done = 1;
             }
         }

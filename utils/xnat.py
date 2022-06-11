@@ -50,7 +50,8 @@ def upload_raw_mr(server_address, username, pw, raw_path, user, tmp_path):
                 print(f'Scan {scan_id} already exists')
             else:
                 # Current raw data file
-                raw_file = user.get_raw_data(user.get_subjects()[ind], user.get_scan(user.get_subjects()[ind])[snd])
+                raw_file = user.get_raw_data(user.get_subjects()[ind], user.get_scans(user.get_subjects()[ind])[snd])
+                raw_file += '.h5'
 
                 # Copy each file to temp folder
                 shutil.copyfile(os.path.join(raw_path, raw_file), os.path.join(tmp_path, raw_file))
@@ -70,10 +71,9 @@ def upload_raw_mr(server_address, username, pw, raw_path, user, tmp_path):
                 os.remove(os.path.join(tmp_path, raw_file))
 
                 # Add xnat info to user
-                user.add_xcat_scan(xnat_subject, scan_id)
+                user.add_xnat_scan(subject_id, scan_id)
 
     xnat_server.disconnect()
-    print('Data was uploaded!')
     return(user)
 
 
@@ -89,25 +89,27 @@ def download_dcm_images(server_address, username, pw, user, tmp_path, qc_im_path
         raise NameError(f'Project {project_name} not available on server.')
 
     # Get dicom of each subject
-    for ind in range(user.get_num_xcat_subjects()):
+    print(user.get_num_xnat_subjects())
+    for ind in range(user.get_num_xnat_subjects()):
         # Get current subject
-        xcat_subject = user.get_xcat_subjects()[ind]
+        xnat_subject_user = user.get_xnat_subjects()[ind]
+        print('xnat_subject', xnat_subject_user)
 
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(xcat_subject)
+        xnat_subject = xnat_project.subject(xnat_subject_user)
         if not xnat_subject.exists():
             xnat_server.disconnect()
-            raise NameError(f'Subject {xcat_subject} does not exist.')
+            raise NameError(f'Subject {xnat_subject} does not exist.')
 
-        experiment_id = xcat_subject.replace('Subj', 'Exp')
+        experiment_id = xnat_subject_user.replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()
             raise NameError(f'Experiment {experiment_id} does not exist.')
 
         # Add all scans
-        for snd in range(user.get_num_xcat_scans(xcat_subject)):
-            scan_id = user.get_xcat_scans(xcat_subject)[snd]
+        for snd in range(user.get_num_xnat_scans(xnat_subject_user)):
+            scan_id = user.get_xnat_scans(xnat_subject_user)[snd]
             scan = experiment.scan(scan_id)
             if not scan.exists():
                 xnat_server.disconnect()
@@ -127,13 +129,13 @@ def download_dcm_images(server_address, username, pw, user, tmp_path, qc_im_path
                     zip.extractall(tmp_path)
 
                 # Create gif
+                subject, scan = user.get_subject_scan_by_idx(ind, snd)
+                print(subject, ' - ', scan)
                 cfile = user.get_raw_data(subject, scan)
                 qc_im_full_filename = utils.create_qc_gif(tmp_path, qc_im_path, cfile)
                 print(f'QC image {qc_im_full_filename} created')
 
                 # Update user info
-                subject, scan = user.get_subject_scan_by_idx(ind, snd)
-                print(subject, ' - ', scan)
                 user.set_recon_flag(subject, scan)
 
                 # Delete all files in the tmp folder
