@@ -23,19 +23,19 @@ class UserModel(UserMixin, db.Model):
     raw_data_files = db.Column(MutablePickleType)
     recon_flag = db.Column(MutablePickleType)
 
-    # Initialise
-    subjects = []
-    scans = {}
-    xnat_subjects = []
-    xnat_scans = {}
-    raw_data_files = {}
-    recon_flag = {}
-
     def set_token(self, token):
         self.token_hash = generate_password_hash(token)
      
     def check_token(self, token):
         return check_password_hash(self.token_hash, token)
+
+    def clear_raw_data(self):
+        self.subjects = []
+        self.scans = {}
+        self.xnat_subjects = []
+        self.xnat_scans = {}
+        self.raw_data_files = {}
+        self.recon_flag = {}
 
     def add_scan(self, subject, scan):
         if subject not in self.subjects:

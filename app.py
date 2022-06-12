@@ -51,6 +51,12 @@ def welcome():
     return render_template('welcome.html')
 
 
+@app.route('/finish', methods=['POST'])
+def finish():
+    clean_up_user_files()
+    return render_template('welcome.html')
+
+
 @app.route('/tutorial_video', methods=['GET'])
 def tutorial_video():
     return render_template('tutorial_video.html')
@@ -90,7 +96,6 @@ def login(email):
             user_id = 'user' + str(user.id) + '_' + time_id + '_'
 
             # Add path id to database
-            print(user_id)
             user.user_id = user_id
             db.session.commit()
 
@@ -152,16 +157,13 @@ def logout():
 def uploader():
     if request.method == 'POST':
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
-            # Get user path id
+            # Get info from database
             user = UserModel.query.get(current_user.id)
 
             # Save file in upload folder
             f = request.files['file']
             f_name = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(user.user_id + f.filename))
             f.save(f_name)
-
-            # Get info from database
-            user = UserModel.query.get(current_user.id)
 
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
@@ -201,6 +203,8 @@ def check_images():
     user = UserModel.query.get(current_user.id)
     user = xnat.download_dcm_images(server_address, username, pw, user, tmp_path, app.config['UPLOAD_FOLDER'])
     db.session.commit()
+    print('are_all_reconstructed ', user.are_all_subjects_reconstructed())
+    print('reload ', user.are_all_subjects_reconstructed()==False)
     return render_template('check_images.html', cuser=user, reload=(user.are_all_subjects_reconstructed()==False))
 
 
@@ -214,16 +218,17 @@ def submit():
             return redirect('/upload')
         else:
             commit_subjects = []
-            delete_subjects = []
+            commit_xnat_subjects = []
+            delete_xnat_subjects = []
             for ind in range(user.get_num_xnat_subjects()):
                 if 'check'+str(ind) in request.form:
-                    commit_subjects.append(user.get_xnat_subjects()[ind])
+                    commit_xnat_subjects.append(user.get_xnat_subjects()[ind])
+                    commit_subjects.append(user.get_subjects()[ind])
                 else:
-                    delete_subjects.append(user.get_xnat_subjects()[ind])
+                    delete_xnat_subjects.append(user.get_xnat_subjects()[ind])
 
-            xnat.commit_to_open(server_address, username, pw, commit_subjects)
-            xnat.delete_from_vault(server_address, username, pw, delete_subjects)
-            clean_up_user_files()
+            xnat.commit_to_open(server_address, username, pw, commit_xnat_subjects)
+            xnat.delete_from_vault(server_address, username, pw, delete_xnat_subjects)
             return render_template('thank_you.html', cuser=user, subjects=commit_subjects, num_subjects=len(commit_subjects))
 
 
@@ -235,26 +240,34 @@ def clean_up_user_files():
     cpath = app.config['UPLOAD_FOLDER']
 
     # Delete zip file starting with user.user_id
-    f_zip = glob.glob(os.path.join(cpath, user_id + '*.zip'))
-    if len(f_zip) > 0:
-        os.remove(f_zip[0])
+    if user_id is not None:
+        f_zip = glob.glob(os.path.join(cpath, user_id + '*.zip'))
+        if len(f_zip) > 0:
+            os.remove(f_zip[0])
 
     # Delete all files created by user
-    for subject in user.get_subjects():
-        for scan in user.get_scans(subject):
-            # Get unique filename without file ending
-            cfile = user.get_raw_data(subject, scan)
+    if user.subjects is not None and user.scans is not None:
+        for subject in user.get_subjects():
+            for scan in user.get_scans(subject):
+                # Get unique filename without file ending
+                cfile = user.get_raw_data(subject, scan)
 
-            # Remove the raw data file
-            if os.path.exists(os.path.join(cpath, cfile + '.h5')):
-                os.remove(os.path.join(cpath, cfile + '.h5'))
+                # Remove the raw data file
+                if os.path.exists(os.path.join(cpath, cfile + '.h5')):
+                    os.remove(os.path.join(cpath, cfile + '.h5'))
 
-            # Remove the (animated) gif file
-            if os.path.exists(os.path.join(cpath, cfile + '.gif')):
-                os.remove(os.path.join(cpath, cfile + '.gif'))
+                # Remove the (animated) gif file
+                if os.path.exists(os.path.join(cpath, cfile + '.gif')):
+                    os.remove(os.path.join(cpath, cfile + '.gif'))
+
+    # Update user info
+    user.clear_raw_data()
+    db.session.commit()
 
     return(True)
 
 
 if __name__ == "__main__":
     app.run(host='localhost', port=5001, debug='on')
+
+

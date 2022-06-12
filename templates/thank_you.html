@@ -9,10 +9,10 @@
         </div>
         <div class="col-6 align-top">
             <p class="lead">
-              Thank you very much for contributing the following data sets to Open Heart:
+              Thank you very much for contributing these data sets to Open Heart:
             </p>
             {%for i in range(0, num_subjects)%}
-                {% set subject = committed_subjects[i] %}
+                {% set subject = subjects[i] %}
                 <p class="lead">
                   {{subject}}
                 </p>
@@ -23,6 +23,13 @@
                 {%endfor%}
                 </ol>
             {%endfor%}
+        </div>
+    </div>
+    <div class="row align-items-center mt-5">
+         <div class="col-5 offset-4">
+             <form method="post" action="/finish">
+                <button type="submit" class="btn btn-danger">Finish</button>
+             </form>
         </div>
     </div>
 </div>

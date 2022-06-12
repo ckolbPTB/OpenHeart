@@ -1,5 +1,5 @@
 <div class="container">
-    <div class="row mt-5 " title="recon_flag" id={{reload}}>
+    <div class="row mt-5 " title="reload" id={{reload}}>
     </div>
     {% for i in range(0, cuser.get_num_subjects()) %}
     {% set subject = cuser.get_subjects()[i] %}
@@ -11,41 +11,41 @@
                     <div class="card-body">
                         <h5 class="card-title">{{subject}}</h5>
                         {% if cuser.are_all_scans_reconstructed(subject) %}
-                            <div id="carousel_check" class="carousel carousel slide" data-bs-ride="carousel">
-                            <div class="carousel-indicators">
-                                {%for j in range(0, cuser.get_num_scans(subject))%}
-                                    {% if j == 0 %}
-                                        <button type="button" data-bs-target="#carousel_check" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
-                                    {% else %}
-                                        <button type="button" data-bs-target="#carousel_check" data-bs-slide-to={{j}} aria-label="Slide "{{j}}></button>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                            <div class="carousel-inner">
-                                {%for j in range(0, cuser.get_num_scans(subject))%}
-                                    {% set scan = cuser.get_scans(subject)[j] %}
-                                    {% if j == 0 %}
-                                        <div class="carousel-item active" data-bs-interval="10000">
-                                    {% else %}
-                                        <div class="carousel-item" data-bs-interval="2000">
-                                    {% endif %}
+                            <div id=carousel_check{{i}} class="carousel carousel slide" data-bs-ride="carousel">
+                                <div class="carousel-indicators">
+                                    {%for j in range(0, cuser.get_num_scans(subject))%}
+                                        {% if j == 0 %}
+                                            <button type="button" data-bs-target=#carousel_check{{i}} data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                                        {% else %}
+                                            <button type="button" data-bs-target=#carousel_check{{i}} data-bs-slide-to={{j}} aria-label="Slide "{{j}}></button>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div class="carousel-inner">
+                                    {%for j in range(0, cuser.get_num_scans(subject))%}
+                                        {% set scan = cuser.get_scans(subject)[j] %}
+                                        {% if j == 0 %}
+                                            <div class="carousel-item active" data-bs-interval="10000">
+                                        {% else %}
+                                            <div class="carousel-item" data-bs-interval="2000">
+                                        {% endif %}
 
-                                            <img src="/static/qc_user/{{cuser.get_raw_data(subject, scan)}}.gif" class="d-block w-100" alt={{scan}}>
-                                            <div class="carousel-caption d-none d-md-block">
-                                                <p style="color:red;font-size:8px;">{{scan}}</p>
+                                                <img src="/static/qc_user/{{cuser.get_raw_data(subject, scan)}}.gif" class="d-block w-100" alt={{scan}}>
+                                                <div class="carousel-caption d-none d-md-block">
+                                                    <p style="color:red;font-size:8px;">{{scan}}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                {% endfor %}
+                                    {% endfor %}
+                                </div>
+                                <button class="carousel-control-prev" type="button" data-bs-target=#carousel_check{{i}} data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Previous</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target=#carousel_check{{i}} data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Next</span>
+                                </button>
                             </div>
-                            <button class="carousel-control-prev" type="button" data-bs-target="#carousel_check" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Previous</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#carousel_check" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Next</span>
-                            </button>
-                        </div>
                         {% else %}
                             {%if reload%}
                                 <div class="row mt-4">
