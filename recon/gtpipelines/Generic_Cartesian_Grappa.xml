@@ -48,8 +48,8 @@
         <name>BucketToBuffer</name>
         <dll>gadgetron_mricore</dll>
         <classname>BucketToBufferGadget</classname>
-        <property><name>N_dimension</name><value>contrast</value></property>
-        <property><name>S_dimension</name><value>average</value></property>
+        <property><name>N_dimension</name><value>phase</value></property>
+        <property><name>S_dimension</name><value>set</value></property>
         <property><name>split_slices</name><value>true</value></property>
         <property><name>ignore_segment</name><value>true</value></property>
         <property><name>verbose</name><value>true</value></property>
@@ -94,8 +94,9 @@
         <property><name>upstream_coil_compression_num_modesKept</name><value>0</value></property>
     </gadget>
 
-    <!-- Recon -->
+    <!-- Grappa Recon -->
     <gadget>
+
         <name>Recon</name>
         <dll>gadgetron_mricore</dll>
         <classname>GenericReconCartesianGrappaGadget</classname>
@@ -119,6 +120,7 @@
         <!-- whether to send out gfactor -->
         <property><name>send_out_gfactor</name><value>false</value></property>
     </gadget>
+
 
     <!-- Partial fourier handling -->
     <gadget>
@@ -213,6 +215,19 @@
         <classname>ComplexToFloatGadget</classname>
     </gadget>
 
+    <!-- Physio interpolation -->
+    <gadget>
+        <name>PhysioInterpolation</name>
+        <dll>gadgetron_mricore</dll>
+        <classname>PhysioInterpolationGadget</classname>
+        <property><name>phases</name><value>30</value></property>
+        <!-- 0=seperate series for each complete RR -->
+        <!-- 1=First complete RR interval only -->
+        <property><name>mode</name><value>0</value></property>
+        <property><name>first_beat_on_trigger</name><value>true</value></property>
+        <!-- "Spline" or "BSpline" -->
+        <property><name>interp_method</name><value>BSpline</value></property>
+    </gadget>
 
     <gadget>
         <name>DicomFinish</name>
