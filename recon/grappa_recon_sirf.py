@@ -1,26 +1,30 @@
 '''
-Author: Johannes Mayer
+Author: Johannes Mayer, Evgueni Ovtchinnikov
 '''
 import argparse
 from pathlib import Path
+import nibabel as nib
+import numpy as np
+from sirf.Gadgetron import AcquisitionData, preprocess_acquisition_data, CartesianGRAPPAReconstructor, Gadget, Reconstructor, FullySampledReconstructor
 
-# import engine module
-from sirf.Gadgetron import AcquisitionData, preprocess_acquisition_data, CartesianGRAPPAReconstructor
-
-# # process command-line options
-# data_file = args['--file']
-# data_path = args['--path']
-
-# output_file = args['--output']
+from collections import Counter
 
 parser = argparse.ArgumentParser(description="Run SIRF GRAPPA reconstruction.")
 parser.add_argument('-i', '--input', help='filename of ISMRMRD file with .h5 suffix used as input.')
 parser.add_argument('-o', '--output', help='filename of Dicom file used as output with .dcm suffix.')
 
-args = parser.parse_args()
-print(args.input)
-print(args.output)
 
+
+args = parser.parse_args()
+fname_nii = Path(args.output).with_suffix(".nii")
+
+print(f"Running SIRF Generic GRAPPA recon of {args.input}, storing it to {args.output}, with {fname_nii} as a reference image.")
+
+def write_nii(fname, sirf_img):
+
+    data = np.abs(sirf_img.as_array())
+    nii = nib.Nifti1Image(data, np.eye(4))
+    nib.save(nii, str(fname))
 
 def main():
     
@@ -36,6 +40,11 @@ def main():
     print('---\n reading in file %s...' % input_file)
     acq_data = AcquisitionData(str(input_file))
     
+    # Check the data consistency
+    phases = sorted(list(acq_data.get_info("phase")))
+    phasecount = Counter(phases)
+    print(phasecount)
+    
     # Pre-process this input data.
     # (Currently this is a Python script that just sets up a 3 chain gadget.
     # In the future it will be independent of the MR recon engine.)
@@ -44,24 +53,22 @@ def main():
     
     # Perform reconstruction of the preprocessed data.
     # 1. set the reconstruction to be for Cartesian GRAPPA data.
-    recon = CartesianGRAPPAReconstructor()
-    
-    # 2. set the reconstruction input to be the data we just preprocessed.
+    recon = FullySampledReconstructor()
     recon.set_input(preprocessed_data)
-    
-    # 3. run (i.e. 'process') the reconstruction.
-    print('---\n reconstructing...\n')
     recon.process()
-
-    # retrieve reconstruced image and G-factor data
     image_data = recon.get_output('image')
     
-    if args.output is not None:
-      # write images to a new group in args.output
-      # named after the current date and time
-      print(f'writing to {args.output}')
-      image_data.write(args.output)
+    image_data = image_data.abs()
+    image_data.write(args.output)
 
+    recon = CartesianGRAPPAReconstructor()
+    recon.set_input(preprocessed_data)
+    recon.process()
+    
+    image_data = recon.get_output('image')
+    image_data = image_data.abs()
+    image_data.write(args.output)
+        
 try:
     main()
     print('\n=== done with %s' % __file__)
@@ -70,3 +77,17 @@ except Exception as e:
     # display error information
     print(e)
     exit(1)
+
+# CALCULATE G-FACTOR MAP
+# recon_gadgets = ['AcquisitionAccumulateTriggerGadget',
+#         'BucketToBufferGadget', 
+#         'GenericReconCartesianReferencePrepGadget', 
+#         'GRAPPA:GenericReconCartesianGrappaGadget', 
+#         'GenericReconFieldOfViewAdjustmentGadget', 
+#         'GenericReconImageArrayScalingGadget', 
+#         'ImageArraySplitGadget',
+#         'PhysioInterpolationGadget(phases=30, mode=0, first_beat_on_trigger=true, interp_method=BSpline)'
+#         ]
+# recon = Reconstructor(recon_gadgets)
+
+# image_data = recon.get_output('Image PhysioInterp')
