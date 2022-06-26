@@ -27,12 +27,12 @@
                                         {% if j == 0 %}
                                             <div class="carousel-item active" data-bs-interval="10000">
                                         {% else %}
-                                            <div class="carousel-item" data-bs-interval="2000">
+                                            <div class="carousel-item" data-bs-interval="10000">
                                         {% endif %}
 
                                                 <img src="/static/qc_user/{{cuser.get_raw_data(subject, scan)}}.gif" class="d-block w-100" alt={{scan}}>
                                                 <div class="carousel-caption d-none d-md-block">
-                                                    <p style="color:red;font-size:8px;">{{scan}}</p>
+                                                    <p style="color:white;font-size:8px;background-color:black;">{{scan}}</p>
                                                 </div>
                                             </div>
                                     {% endfor %}
@@ -72,23 +72,23 @@
                             {% endif %}
                         {% endif %}
 
-                    <p class="card-text">
-                    {%if reload == 0%}
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name=check{{i}} value="" id="flexCheckDefault">
-                        <label class="form-check-label" for="flexCheckDefault">
-                            Submit
-                        </label>
+                        <p class="card-text">
+                        {%if reload == 0%}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name=check{{i}} value="" id="flexCheckDefault">
+                                <label class="form-check-label" for="flexCheckDefault">
+                                    Submit
+                                </label>
+                            </div>
+                        {% endif %}
+                        </p>
                     </div>
-                    {% endif %}
-                    </p>
                 </div>
             </div>
-    {% if i % 6 == 0 %}
+    {% if i % 4 == 3 or i == cuser.get_num_subjects()-1%}
         </div>
     {% endif %}
     {% endfor %}
-    </div>
 </div>
 
 
