@@ -3,9 +3,35 @@ import nibabel as nib
 import sys, re, os
 import glob
 
+import pydicom
+
 from collections import Counter
 import sirf.Gadgetron as pMR
 from sirf.Utilities import assert_validity
+
+def write_dcm(fname_out_prefix, path_in, img):
+
+    dcm = pydicom.dcmread(path_in+'/dummyfile.dcm')
+    dcm_type = dcm.pixel_array.dtype
+
+    data = np.abs(np.squeeze(img.as_array()))
+    data = np.iinfo(dcm_type).max*(data-np.min(data))/(np.max(data)-np.min(data))
+    data = data.astype(dcm_type)
+
+    dcm.Rows, dcm.Columns = data.shape[1:]
+    
+    dcm.WindowCenter = (np.max(data)+np.min(data))/2
+    dcm.WindowWidth = (np.max(data)-np.min(data))
+
+    for islc in range(data.shape[0]):
+
+        cdata = np.squeeze(data[islc,...])
+        dcm.PixelData = cdata.tobytes()
+
+        cfname = fname_out_prefix + "_" + str(islc) + ".dcm"
+        print(f"Storing {cfname}")
+        dcm.save_as(cfname)
+
 
 def write_nii(fname, img):
     print(f"writing {fname}")
@@ -79,15 +105,9 @@ recon.process()
 image_data = recon.get_output('image PhysioInterp')
 print('Size of image data with PhysioInterpolationGadget: ', image_data.dimensions())
 
-write_nii(path_out + '/' + file_in.replace('.h5','.nii'), image_data)
-
 image_data = image_data.abs()
-img_values = image_data.as_array()
-img_values = (img_values - np.min(img_values))/ (np.max(img_values) - np.min(img_values))
-image_data = image_data.fill(img_values)
 
-image_data *= 2^32
-file_out = file_in.replace('.h5', '.dcm')
-image_data.write(path_out + '/' + file_out)
+dcm_output_prefix = path_out + '/' + file_in.replace('.h5','')
+write_dcm(dcm_output_prefix,path_in,image_data)
 
 print('python finished')
