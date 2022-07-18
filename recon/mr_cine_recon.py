@@ -17,16 +17,13 @@ def main(path_in, path_out):
 
     for mrfile in list_of_files:
 
-        fstem = mrfile.stem
-        cpath_out = path_out / f"recon_{fstem}"
-
+        cpath_out = path_out / f"recon_{mrfile.stem}"
         sirf_recon(mrfile, cpath_out)
 
     print('python finished')
     return 0
 
 def sirf_recon(fname_in, path_out):
-
     
     assert isinstance(fname_in, PosixPath),f'Expecting object of type {PosixPath}, got {type(fname_in)}'
     assert isinstance(path_out, PosixPath),f'Expecting object of type {PosixPath}, got {type(path_out)}'
@@ -35,11 +32,14 @@ def sirf_recon(fname_in, path_out):
 
     print(f"Starting reconstruction for {fname_in}")
 
-    rawdata = pMR.AcquisitionData(str(fname_in))
-    rawdata = exclude_undersampled_phases(rawdata)
+    image_data = reconstruct_data(fname_in)
+    dcm_output_name = path_out / fname_in.with_suffix('.dcm').name
+    
+    image_data.write(str(dcm_output_name))
 
-    rawdata = pMR.preprocess_acquisition_data(rawdata)
-    rawdata.sort()
+def reconstruct_data(fname_in):
+    
+    rawdata = prep_rawdata(fname_in)
 
     recon = setup_recon()
     recon.set_input(rawdata)
@@ -47,10 +47,14 @@ def sirf_recon(fname_in, path_out):
 
     image_data = recon.get_output('image PhysioInterp')
     image_data = normalise_image_data(image_data)
+    return image_data
 
-    dcm_output_name = path_out / fname_in.with_suffix('.dcm').name
-    
-    image_data.write(str(dcm_output_name))
+def prep_rawdata(fname_in):
+
+    rawdata = pMR.AcquisitionData(str(fname_in))
+    rawdata = exclude_undersampled_phases(rawdata)
+    rawdata = pMR.preprocess_acquisition_data(rawdata)
+    rawdata.sort()
 
 def exclude_undersampled_phases(rawdata):
     cardiac_phase = rawdata.get_info('phase')
@@ -92,7 +96,6 @@ def normalise_image_data(img):
     img = 2**16 * (img - img_min)/(img_max-img_min)
 
     return img
-
 
 ### looped reconstruction over files in input path
 path_in  = Path(sys.argv[1])
