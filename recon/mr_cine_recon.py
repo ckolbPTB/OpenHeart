@@ -1,43 +1,56 @@
 import numpy as np
-import nibabel as nib
-import sys, re, os
-import glob
-
-import pydicom
+import sys, os
 
 from collections import Counter
 import sirf.Gadgetron as pMR
 from sirf.Utilities import assert_validity
 
-def write_dcm(fname_out_prefix, path_in, img):
+from pathlib import Path, PosixPath
 
-    dcm = pydicom.dcmread(path_in+'/dummyfile.dcm')
-    dcm_type = dcm.pixel_array.dtype
+def main(path_in, path_out):
 
-    data = np.abs(np.squeeze(img.as_array()))
-    data = np.iinfo(dcm_type).max*(data-np.min(data))/(np.max(data)-np.min(data))
-    data = data.astype(dcm_type)
+    print(f"Reading from {path_in}, writing into {path_out}")
+    assert os.access(path_in, os.R_OK), f"You don't have write permission in {path_in}"
+    assert os.access(path_out, os.W_OK), f"You don't have write permission in {path_out}"
 
-    dcm.Rows, dcm.Columns = data.shape[1:]
+    list_of_files = sorted(path_in.glob("*.h5"))
+
+    for mrfile in list_of_files:
+
+        fstem = mrfile.stem
+        cpath_out = path_out / f"recon_{fstem}"
+
+        sirf_recon(mrfile, cpath_out)
+
+    print('python finished')
+    return 0
+
+def sirf_recon(fname_in, path_out):
+
     
-    dcm.WindowCenter = (np.max(data)+np.min(data))/2
-    dcm.WindowWidth = (np.max(data)-np.min(data))
+    assert isinstance(fname_in, PosixPath),f'Expecting object of type {PosixPath}, got {type(fname_in)}'
+    assert isinstance(path_out, PosixPath),f'Expecting object of type {PosixPath}, got {type(path_out)}'
 
-    for islc in range(data.shape[0]):
+    path_out.mkdir(parents=True, exist_ok=False)
 
-        cdata = np.squeeze(data[islc,...])
-        dcm.PixelData = cdata.tobytes()
+    print(f"Starting reconstruction for {fname_in}")
 
-        cfname = fname_out_prefix + "_" + str(islc) + ".dcm"
-        print(f"Storing {cfname}")
-        dcm.save_as(cfname)
+    rawdata = pMR.AcquisitionData(str(fname_in))
+    rawdata = exclude_undersampled_phases(rawdata)
 
+    rawdata = pMR.preprocess_acquisition_data(rawdata)
+    rawdata.sort()
 
-def write_nii(fname, img):
-    print(f"writing {fname}")
-    data = np.abs(np.squeeze(img.as_array()))
-    nii = nib.Nifti1Image(data, np.eye(4))
-    nib.save(nii, fname)
+    recon = setup_recon()
+    recon.set_input(rawdata)
+    recon.process()
+
+    image_data = recon.get_output('image PhysioInterp')
+    image_data = normalise_image_data(image_data)
+
+    dcm_output_name = path_out / fname_in.with_suffix('.dcm').name
+    
+    image_data.write(str(dcm_output_name))
 
 def exclude_undersampled_phases(rawdata):
     cardiac_phase = rawdata.get_info('phase')
@@ -50,64 +63,39 @@ def exclude_undersampled_phases(rawdata):
     rawdata = rawdata.get_subset(fullysampled_idx)
 
     return rawdata
-    
 
-path_in = sys.argv[1]
-path_out = sys.argv[2]
+def setup_recon():
 
-print(path_in)
-print(os.stat(path_in).st_uid)
-print(os.access(path_in, os.R_OK))
-print(os.access(path_in, os.W_OK))
+    recon_gadgets = ['AcquisitionAccumulateTriggerGadget(trigger_dimension=repetition)',
+            'BucketToBufferGadget(split_slices=true, verbose=false)',
+            'GenericReconCartesianReferencePrepGadget',
+            'GenericReconCartesianGrappaGadget(send_out_gfactor=false)',
+            'GenericReconFieldOfViewAdjustmentGadget',
+            'GenericReconImageArrayScalingGadget',
+            'ImageArraySplitGadget',
+            'PhysioInterpolationGadget(phases=30, mode=0, first_beat_on_trigger=true, interp_method=BSpline)'
+            ]
 
-print(path_out)
-print(os.stat(path_out).st_uid)
-print(os.access(path_out, os.R_OK))
-print(os.access(path_out, os.W_OK))
+    recon = pMR.Reconstructor(recon_gadgets)
 
-list_of_files = []
+    return recon
 
-for file in os.listdir(path_in):
-        list_of_files.append(os.path.join(path_in,file))
-for name in list_of_files:
-    print('in ', name)
-    
-# Get all h5 files
-data = [os.path.basename(x) for x in glob.glob(path_in + '/*.h5')]
+def normalise_image_data(img):
 
-for name in data:
-    print('h5 ', name)
-    
-file_in = data[0]
+    assert_validity(img, pMR.ImageData)
 
-print('python started again')
+    img = img.abs()
 
-rawdata = pMR.AcquisitionData(path_in + '/' + file_in)
-rawdata = exclude_undersampled_phases(rawdata)
+    img_max = np.max(img.as_array())
+    img_min = np.min(img.as_array())
 
-rawdata = pMR.preprocess_acquisition_data(rawdata)
-rawdata.sort()
+    img = 2**16 * (img - img_min)/(img_max-img_min)
 
-recon_gadgets = ['AcquisitionAccumulateTriggerGadget(trigger_dimension=repetition)', 
-        'BucketToBufferGadget(split_slices=true, verbose=false)', 
-        'GenericReconCartesianReferencePrepGadget', 
-        'GenericReconCartesianGrappaGadget(send_out_gfactor=false)',
-        'GenericReconFieldOfViewAdjustmentGadget',
-        'GenericReconImageArrayScalingGadget',
-        'ImageArraySplitGadget',
-        'PhysioInterpolationGadget(phases=30, mode=0, first_beat_on_trigger=true, interp_method=BSpline)'
-        ]
-    
-recon = pMR.Reconstructor(recon_gadgets)
-recon.set_input(rawdata)
-recon.process()
+    return img
 
-image_data = recon.get_output('image PhysioInterp')
-print('Size of image data with PhysioInterpolationGadget: ', image_data.dimensions())
 
-image_data = image_data.abs()
+### looped reconstruction over files in input path
+path_in  = Path(sys.argv[1])
+path_out = Path(sys.argv[2])
 
-dcm_output_prefix = path_out + '/' + file_in.replace('.h5','')
-write_dcm(dcm_output_prefix,path_in,image_data)
-
-print('python finished')
+main(path_in, path_out)
