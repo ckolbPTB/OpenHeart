@@ -21,6 +21,7 @@ def main(path_in, path_out):
         sirf_recon(mrfile, cpath_out)
 
     print('python finished')
+
     return 0
 
 def sirf_recon(fname_in, path_out):
@@ -101,4 +102,7 @@ def normalise_image_data(img):
 path_in  = Path(sys.argv[1])
 path_out = Path(sys.argv[2])
 
-main(path_in, path_out)
+try:
+    main(path_in, path_out)
+except Exception as e:
+    print(f"Program failed because of {str(e)}")
