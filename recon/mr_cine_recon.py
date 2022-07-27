@@ -56,7 +56,9 @@ def prep_rawdata(fname_in):
     rawdata = exclude_undersampled_phases(rawdata)
     rawdata = pMR.preprocess_acquisition_data(rawdata)
     rawdata.sort()
-
+    
+    return rawdata
+    
 def exclude_undersampled_phases(rawdata):
     cardiac_phase = rawdata.get_info('phase')
     cpc = Counter(cardiac_phase)
