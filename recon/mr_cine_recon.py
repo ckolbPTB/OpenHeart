@@ -29,13 +29,14 @@ def sirf_recon(fname_in, path_out):
     assert isinstance(fname_in, PosixPath),f'Expecting object of type {PosixPath}, got {type(fname_in)}'
     assert isinstance(path_out, PosixPath),f'Expecting object of type {PosixPath}, got {type(path_out)}'
 
-    path_out.mkdir(parents=True, exist_ok=False)
+    path_out.mkdir(parents=True, exist_ok=True)
 
     print(f"Starting reconstruction for {fname_in}")
 
     image_data = reconstruct_data(fname_in)
     dcm_output_name = path_out / fname_in.with_suffix('.dcm').name
-    
+
+    print(f"Just before writing {dcm_output_name} with dimension {image_data.dimensions()}")    
     image_data.write(str(dcm_output_name))
 
 def reconstruct_data(fname_in):
