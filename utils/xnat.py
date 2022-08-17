@@ -5,10 +5,8 @@ import ismrmrd
 import utils
 from zipfile import ZipFile
 
-project_name = 'Vault4'
-project_name_open = 'Open'
 
-def upload_raw_mr(server_address, username, pw, raw_path, user, tmp_path):
+def upload_raw_mr(server_address, username, pw, raw_path, project_name, user, tmp_path):
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
 
     # Connect to server
@@ -77,7 +75,7 @@ def upload_raw_mr(server_address, username, pw, raw_path, user, tmp_path):
     return(user)
 
 
-def download_dcm_images(server_address, username, pw, user, tmp_path, qc_im_path):
+def download_dcm_images(server_address, username, pw, project_name, user, tmp_path, qc_im_path):
 
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
@@ -147,7 +145,7 @@ def download_dcm_images(server_address, username, pw, user, tmp_path, qc_im_path
     return(user)
 
 
-def commit_to_open(server_address, username, pw, xnat_subject_list):
+def commit_to_open(server_address, username, pw, project_name, project_name_open, xnat_subject_list):
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
 
@@ -178,7 +176,7 @@ def commit_to_open(server_address, username, pw, xnat_subject_list):
     return(True)
 
 
-def delete_from_vault(server_address, username, pw, xnat_subject_list):
+def delete_from_vault(server_address, username, pw, project_name, xnat_subject_list):
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
 

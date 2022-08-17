@@ -13,14 +13,11 @@ import xnat
 from user import UserModel, db, login
 import uuid
 
-server_address = 'http://release.xnat.org'
-username = 'admin'
-pw = 'admin'
 
-tmp_path = '/Users/christoph/Documents/KCL/XNAT/WEB_DATA/TMP/'
+tmp_path = '/Users/kolbit01/Documents/PTB/Data/XNAT/WEB_APP/TMP/'
 
 app = Flask(__name__, template_folder='templates')
-app.config['UPLOAD_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
+app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
 app.config['MAX_CONTENT_PATH'] = 1e10
 app.secret_key = "secret key"
 
@@ -38,6 +35,11 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
+app.config['XNAT_SERVER'] = os.environ.get('XNAT_SERVER')
+app.config['XNAT_ADMIN_USER'] = os.environ.get('XNAT_ADMIN_USER')
+app.config['XNAT_ADMIN_PW'] = os.environ.get('XNAT_ADMIN_PW')
+app.config['XNAT_PROJECT_ID_VAULT'] = os.environ.get('XNAT_PROJECT_ID_VAULT')
+app.config['XNAT_PROJECT_ID_OPEN'] = os.environ.get('XNAT_PROJECT_ID_OPEN')
 mail = Mail(app)
 
 
@@ -162,7 +164,7 @@ def uploader():
 
             # Save file in upload folder
             f = request.files['file']
-            f_name = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(user.user_id + f.filename))
+            f_name = os.path.join(app.config['DATA_FOLDER'], secure_filename(user.user_id + f.filename))
             f.save(f_name)
 
             # Unzip files
@@ -177,7 +179,7 @@ def uploader():
                             cfile_name = str(uuid.uuid4())
                             user.add_raw_data(cpath, cfile, cfile_name)
                             zip_info.filename = cfile_name + '.h5'
-                            zip.extract(zip_info, path=app.config['UPLOAD_FOLDER'])
+                            zip.extract(zip_info, path=app.config['DATA_FOLDER'])
 
             db.session.commit()
             return render_template('upload_summary.html', cuser=user)
@@ -190,7 +192,8 @@ def uploader():
 def check():
     if request.method == "POST":
         user = UserModel.query.get(current_user.id)
-        user = xnat.upload_raw_mr(server_address, username, pw, app.config['UPLOAD_FOLDER'], user, tmp_path)
+        user = xnat.upload_raw_mr(app.config['XNAT_SERVER'], app.config['XNAT_ADMIN_USER'], app.config['XNAT_ADMIN_PW'],
+                                  app.config['DATA_FOLDER'], app.config['XNAT_PROJECT_ID_VAULT'], user, tmp_path)
         db.session.commit()
 
         return render_template('check.html')
@@ -201,7 +204,9 @@ def check():
 @login_required
 def check_images():
     user = UserModel.query.get(current_user.id)
-    user = xnat.download_dcm_images(server_address, username, pw, user, tmp_path, app.config['UPLOAD_FOLDER'])
+    user = xnat.download_dcm_images(app.config['XNAT_SERVER'], app.config['XNAT_ADMIN_USER'],
+                                    app.config['XNAT_ADMIN_PW'], app.config['XNAT_PROJECT_ID_VAULT'], user, tmp_path,
+                                    app.config['DATA_FOLDER'])
     db.session.commit()
     print('are_all_reconstructed ', user.are_all_subjects_reconstructed())
     print('reload ', user.are_all_subjects_reconstructed()==False)
@@ -227,8 +232,11 @@ def submit():
                 else:
                     delete_xnat_subjects.append(user.get_xnat_subjects()[ind])
 
-            xnat.commit_to_open(server_address, username, pw, commit_xnat_subjects)
-            xnat.delete_from_vault(server_address, username, pw, delete_xnat_subjects)
+            xnat.commit_to_open(app.config['XNAT_SERVER'], app.config['XNAT_ADMIN_USER'], app.config['XNAT_ADMIN_PW'],
+                                app.config['XNAT_PROJECT_ID_VAULT'], app.config['XNAT_PROJECT_ID_OPEN'], commit_xnat_subjects)
+            xnat.delete_from_vault(app.config['XNAT_SERVER'], app.config['XNAT_ADMIN_USER'],
+                                   app.config['XNAT_ADMIN_PW'], app.config['XNAT_PROJECT_ID_VAULT'],
+                                   delete_xnat_subjects)
             return render_template('thank_you.html', cuser=user, subjects=commit_subjects, num_subjects=len(commit_subjects))
 
 
@@ -237,7 +245,7 @@ def clean_up_user_files():
     user_id = user.user_id
 
     # Path where all files are saved
-    cpath = app.config['UPLOAD_FOLDER']
+    cpath = app.config['DATA_FOLDER']
 
     # Delete zip file starting with user.user_id
     if user_id is not None:
@@ -268,5 +276,4 @@ def clean_up_user_files():
 
 
 if __name__ == "__main__":
-    app.run(host='localhost', port=5001, debug='on')
-
+    app.run(host='localhost', port=5002, debug='on')
