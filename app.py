@@ -14,7 +14,8 @@ from user import UserModel, db, login
 import uuid
 
 
-tmp_path = '/Users/kolbit01/Documents/PTB/Data/XNAT/WEB_APP/TMP/'
+# tmp_path = '/Users/kolbit01/Documents/PTB/Data/XNAT/WEB_APP/TMP/'
+tmp_path = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
 
 app = Flask(__name__, template_folder='templates')
 app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
@@ -276,4 +277,5 @@ def clean_up_user_files():
 
 
 if __name__ == "__main__":
-    app.run(host='localhost', port=5002, debug='on')
+    # app.run(host='localhost', port=5002, debug='on')
+    app.run(host='0.0.0.0', port=5001, debug='on')

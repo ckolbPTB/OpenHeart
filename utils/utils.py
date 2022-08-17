@@ -79,7 +79,7 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     num_files = len(dcm_files)
 
     # Get header information for sorting
-    sort_key_words = ['SliceLocation', 'EchoTime']
+    sort_key_words = ['ImageNumber', 'SliceLocation', 'EchoTime']
     sort_idx = np.zeros((len(sort_key_words), num_files), dtype=np.float32)
     for ind in range(num_files):
         ds = pydicom.dcmread(dicom_path + '/' + dcm_files[ind])
