@@ -3,6 +3,7 @@ import imageio
 import glob, os
 import numpy as np
 import matplotlib.pyplot as plt
+import skimage.util
 
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
@@ -78,17 +79,17 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     # Number of images
     num_files = len(dcm_files)
 
+    # SliceLocation has to be last otherwise gif generation for xnat below will not work properly
+    sort_key_words = ['ImageNumber', 'EchoTime', 'SliceLocation']
+
     # Get header information for sorting
-    sort_key_words = ['SliceLocation', 'EchoTime']
     sort_idx = np.zeros((len(sort_key_words), num_files), dtype=np.float32)
     for ind in range(num_files):
         ds = pydicom.dcmread(dicom_path + '/' + dcm_files[ind])
         for jnd in range(len(sort_key_words)):
             if sort_key_words[jnd] in ds:
-                sort_idx[jnd, ind] = float(ds.data_element(sort_key_words[0]).value)
+                sort_idx[jnd, ind] = float(ds.data_element(sort_key_words[jnd]).value)
     slice_idx = np.lexsort(sort_idx)
-
-
 
     # ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRBigEndian
     # Read data
@@ -110,6 +111,27 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     ds = np.moveaxis(ds, 0, -1)
     ds = np.reshape(ds, ds.shape[:2] + (-1,))
 
+    # Create one gif with all slices one after the other
     qc_im_full_filename = save_gif(ds, qc_im_path, upload_file, cmap='gray', min_max_val=[], total_dur=2)
+
+    # Create gif of central slice for thumbnail images in xnat and a montage of all slices for overview in xnat
+
+    # Number of slices
+    slice_idx = sort_key_words.index('SliceLocation')
+    num_slices = len(np.unique(sort_idx[slice_idx,:]))
+
+    # Split into slices
+    ds = np.array_split(ds, num_slices, axis=2)
+
+    # Central slice for thumbnail
+    fname_snapshot_t = save_gif(ds[int(num_slices//2)], qc_im_path, 'snapshot_t', cmap='gray', min_max_val=[], total_dur=1)
+
+    # Montage for overview
+    for dyn in range(ds[0].shape[2]):
+        tmp = skimage.util.montage([x[:,:,dyn] for x in ds], fill=0)
+        if dyn == 0:
+            ds_montage = np.zeros(tmp.shape + (ds[0].shape[2],))
+        ds_montage[:,:,dyn] = tmp
+    fname_snapshot = save_gif(ds_montage, qc_im_path, 'snapshot', cmap='gray', min_max_val=[], total_dur=1)
 
     return(qc_im_full_filename)
