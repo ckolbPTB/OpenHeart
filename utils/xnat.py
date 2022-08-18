@@ -105,41 +105,48 @@ def download_dcm_images(server_address, username, pw, project_name, user, tmp_pa
             xnat_server.disconnect()
             raise NameError(f'Experiment {experiment_id} does not exist.')
 
-        # Add all scans
+        # Go through all scans
         for snd in range(user.get_num_xnat_scans(xnat_subject_user)):
-            scan_id = user.get_xnat_scans(xnat_subject_user)[snd]
-            scan = experiment.scan(scan_id)
-            if not scan.exists():
-                xnat_server.disconnect()
-                raise NameError(f'Scan {scan_id} does not exist.')
+            subject_name, scan_name = user.get_subject_scan_by_idx(ind, snd)
+            print(subject_name, ' - ', scan_name)
 
-            # Check if dicom exists
-            if scan.resource('DICOM').exists():
-                # Make sure folder is empty
-                for root, dirs, files in os.walk(tmp_path):
-                    for file in files:
-                        os.remove(os.path.join(root, file))
+            if not user.get_recon_flag(subject_name, scan_name):
+                scan_id = user.get_xnat_scans(xnat_subject_user)[snd]
+                scan = experiment.scan(scan_id)
+                if not scan.exists():
+                    xnat_server.disconnect()
+                    raise NameError(f'Scan {scan_id} does not exist.')
 
-                # Download dicom and extract it
-                fname_dcm_zip = scan.resource('DICOM').get(tmp_path)
+                # Check if dicom exists
+                if scan.resource('DICOM').exists():
+                    # Make sure folder is empty
+                    for root, dirs, files in os.walk(tmp_path):
+                        for file in files:
+                            os.remove(os.path.join(root, file))
 
-                with ZipFile(fname_dcm_zip, 'r') as zip:
-                    zip.extractall(tmp_path)
+                    # Download dicom and extract it
+                    fname_dcm_zip = scan.resource('DICOM').get(tmp_path)
 
-                # Create gif
-                subject, scan = user.get_subject_scan_by_idx(ind, snd)
-                print(subject, ' - ', scan)
-                cfile = user.get_raw_data(subject, scan)
-                qc_im_full_filename = utils.create_qc_gif(tmp_path, qc_im_path, cfile)
-                print(f'QC image {qc_im_full_filename} created')
+                    with ZipFile(fname_dcm_zip, 'r') as zip:
+                        zip.extractall(tmp_path)
 
-                # Update user info
-                user.set_recon_flag(subject, scan)
+                    # Create gif
+                    cfile = user.get_raw_data(subject_name, scan_name)
+                    qc_im_full_filename = utils.create_qc_gif(tmp_path, qc_im_path, cfile)
+                    print(f'QC image {qc_im_full_filename} created')
 
-                # Delete all files in the tmp folder
-                for root, dirs, files in os.walk(tmp_path):
-                    for file in files:
-                        os.remove(os.path.join(root, file))
+                    # Upload snapshot images
+                    scan_resource = scan.resource('SNAPSHOTS')
+                    scan_resource.put([qc_im_path + cfile + '_snapshot_t.gif',], format='gif', content='THUMBNAIL')
+                    scan_resource.put([qc_im_path + cfile + '_snapshot.gif',], format='gif', content='ORIGINAL')
+
+                    # Update user info
+                    user.set_recon_flag(subject_name, scan_name)
+
+                    # Delete all files in the tmp folder
+                    for root, dirs, files in os.walk(tmp_path):
+                        for file in files:
+                            os.remove(os.path.join(root, file))
 
     xnat_server.disconnect()
     return(user)

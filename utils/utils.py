@@ -124,7 +124,7 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     ds = np.array_split(ds, num_slices, axis=2)
 
     # Central slice for thumbnail
-    fname_snapshot_t = save_gif(ds[int(num_slices//2)], qc_im_path, 'snapshot_t', cmap='gray', min_max_val=[], total_dur=1)
+    fname_snapshot_t = save_gif(ds[int(num_slices//2)], qc_im_path, upload_file + '_snapshot_t', cmap='gray', min_max_val=[], total_dur=1)
 
     # Montage for overview
     for dyn in range(ds[0].shape[2]):
@@ -132,6 +132,6 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
         if dyn == 0:
             ds_montage = np.zeros(tmp.shape + (ds[0].shape[2],))
         ds_montage[:,:,dyn] = tmp
-    fname_snapshot = save_gif(ds_montage, qc_im_path, 'snapshot', cmap='gray', min_max_val=[], total_dur=1)
+    fname_snapshot = save_gif(ds_montage, qc_im_path, upload_file + '_snapshot', cmap='gray', min_max_val=[], total_dur=1)
 
     return(qc_im_full_filename)
