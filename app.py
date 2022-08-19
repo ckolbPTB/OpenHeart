@@ -7,20 +7,20 @@ import os, os.path, glob, random
 from datetime import datetime
 import shutil
 
-# import sys
-# sys.path.append('./utils/')
-# import xnat
-# from user import UserModel, db, login
-# import uuid
+import sys
+sys.path.append('./utils/')
+import xnat
+from user import UserModel, db, login
+import uuid
 
 
 tmp_path = '/Users/kolbit01/Documents/PTB/Data/XNAT/WEB_APP/TMP/'
 
 app = Flask(__name__, template_folder='templates')
-# app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
-# app.config['MAX_CONTENT_PATH'] = 1e10
-# app.secret_key = "secret key"
-#
+app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
+app.config['MAX_CONTENT_PATH'] = 1e10
+app.secret_key = "secret key"
+
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///open_heart.db'
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 #
