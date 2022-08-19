@@ -1,12 +1,12 @@
 from flask import Flask, request, redirect, url_for, render_template
-# from flask_login import login_required, current_user, login_user, logout_user
-# from flask_mail import Mail, Message
-# from werkzeug.utils import secure_filename
-# from zipfile import ZipFile
-# import os, os.path, glob, random
-# from datetime import datetime
-# import shutil
-#
+from flask_login import login_required, current_user, login_user, logout_user
+from flask_mail import Mail, Message
+from werkzeug.utils import secure_filename
+from zipfile import ZipFile
+import os, os.path, glob, random
+from datetime import datetime
+import shutil
+
 # import sys
 # sys.path.append('./utils/')
 # import xnat
