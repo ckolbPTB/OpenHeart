@@ -49,6 +49,7 @@ app = Flask(__name__, template_folder='templates')
 
 @app.route("/")
 def hello():
+    print('O P E N H E A R T')
     return "Hello, SmartNinja!"
 
 # @app.route('/', methods=['GET'])
