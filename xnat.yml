@@ -8,6 +8,7 @@ dependencies:
   - scipy
   - imageio
   - matplotlib
+  - scikit-image
   - pip:
     - flask
     - flask-mail
