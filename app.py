@@ -22,14 +22,14 @@ app = Flask(__name__, template_folder='templates')
 app.config['MAX_CONTENT_PATH'] = 1e10
 app.secret_key = "secret key"
 
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///open_heart.db'
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-#
-#
-# db.init_app(app)
-# login.init_app(app)
-# login.login_view = 'register'
-#
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///open_heart.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
+db.init_app(app)
+login.init_app(app)
+login.login_view = 'register'
+
 # app.config['MAIL_SERVER'] ='smtp.gmail.com'
 # app.config['MAIL_PORT'] = 465
 # app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
@@ -44,14 +44,14 @@ app.secret_key = "secret key"
 # mail = Mail(app)
 
 
-# @app.before_first_request
-# def create_all():
-#     db.create_all()
+@app.before_first_request
+def create_all():
+    db.create_all()
 
 
 @app.route('/', methods=['GET'])
 def welcome():
-     return render_template('welcome.html')
+    return render_template('welcome.html')
 
 
 # @app.route('/finish', methods=['POST'])
