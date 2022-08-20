@@ -1,7 +1,7 @@
 import pyxnat
 from datetime import datetime
 import os, shutil
-import ismrmrd
+#import ismrmrd
 import utils
 from zipfile import ZipFile
 
