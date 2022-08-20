@@ -58,23 +58,23 @@ def welcome():
 # def finish():
 #     clean_up_user_files()
 #     return render_template('welcome.html')
-#
-#
-# @app.route('/tutorial_video', methods=['GET'])
-# def tutorial_video():
-#     return render_template('tutorial_video.html')
-#
-#
-# @app.route('/ismrmrd_tools', methods=['GET'])
-# def ismrmrd_tools():
-#     return render_template('ismrmrd_tools.html')
-#
-#
-# @app.route('/terms_conds', methods=['GET'])
-# def terms_conds():
-#     return render_template('terms_conds.html')
-#
-#
+
+
+@app.route('/tutorial_video', methods=['GET'])
+def tutorial_video():
+    return render_template('tutorial_video.html')
+
+
+@app.route('/ismrmrd_tools', methods=['GET'])
+def ismrmrd_tools():
+    return render_template('ismrmrd_tools.html')
+
+
+@app.route('/terms_conds', methods=['GET'])
+def terms_conds():
+    return render_template('terms_conds.html')
+
+
 # @app.route('/upload', methods=['GET', 'POST'])
 # @login_required
 # def upload():
