@@ -48,14 +48,10 @@ app.secret_key = "secret key"
 # def create_all():
 #     db.create_all()
 
-@app.route("/")
-def hello():
-    print('O P E N H E A R T')
-    return "Hello, SmartNinja!"
 
-# @app.route('/', methods=['GET'])
-# def welcome():
-#     return render_template('welcome.html')
+@app.route('/', methods=['GET'])
+def welcome():
+     return render_template('welcome.html')
 
 
 # @app.route('/finish', methods=['POST'])
