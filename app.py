@@ -17,7 +17,7 @@ import uuid
 tmp_path = '/Users/kolbit01/Documents/PTB/Data/XNAT/WEB_APP/TMP/'
 
 app = Flask(__name__, template_folder='templates')
-app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
+# app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
 app.config['MAX_CONTENT_PATH'] = 1e10
 app.secret_key = "secret key"
 
