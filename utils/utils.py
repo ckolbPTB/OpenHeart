@@ -1,4 +1,4 @@
-import pydicom
+#import pydicom
 import imageio
 import glob, os
 import numpy as np
