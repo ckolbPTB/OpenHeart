@@ -2,7 +2,7 @@
 import imageio
 import glob, os
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import skimage.util
 
 def ismrmrd_2_xnat(ismrmrd_header):

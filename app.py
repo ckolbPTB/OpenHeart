@@ -7,6 +7,7 @@ import os, os.path, glob, random
 from datetime import datetime
 import shutil
 
+print("IMPORTING FOR OPEN HEART")
 import sys
 sys.path.append('./utils/')
 import xnat
