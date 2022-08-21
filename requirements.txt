@@ -1,0 +1,14 @@
+numpy
+scipy
+imageio
+matplotlib
+scikit-image
+Flask
+Flask-Login
+Flask-Mail
+Flask-SQLAlchemy
+SQLAlchemy
+sqlalchemy-mutable
+pydicom
+ismrmrd
+pyxnat
