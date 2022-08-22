@@ -3,6 +3,8 @@ import imageio
 import glob, os
 import numpy as np
 import matplotlib.pyplot as plt
+import hashlib
+import docker
 
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
@@ -113,3 +115,38 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     qc_im_full_filename = save_gif(ds, qc_im_path, upload_file, cmap='gray', min_max_val=[], total_dur=2)
 
     return(qc_im_full_filename)
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+def valid_extension(zipfile_content):
+    list_valid_suffixes = ['.h5', '.dat']
+    return zipfile_content.suffix in list_valid_suffixes 
+
+def convert_dat_file(filename, measurement_number=1):
+
+    filepath = filename.parent
+    volumes = [f"{filepath}:/input", f"{filepath}:/output"] 
+
+    filename_output = filename.with_suffix('.h5')
+    assert not filename_output.is_file(), f"You try to convert {filename} but {filename_output} already exists.\
+        Conversion would lead to appending to the output file. Aborting."
+
+    conversion_command = f"siemens_to_ismrmrd -z {measurement_number} -f /input/{filename.name} -o /output/{filename_output.name}"
+
+    client = docker.from_env()
+    client.containers.run(image="johannesmayer/s2i", command=conversion_command, volumes=volumes, detach=False)
+    return filename_output
+
+def rename_h5_file(fname_out):
+    print(f"We are renaming {fname_out}")
+    md5_hash = md5(str(fname_out))
+    cfile_name = (fname_out.parent / md5_hash).with_suffix(".h5")
+    fname_out.rename(cfile_name)
+    print(f"Output is  {cfile_name}")
+    return cfile_name

@@ -5,17 +5,17 @@ from werkzeug.utils import secure_filename
 from zipfile import ZipFile
 import os, os.path, glob, random
 from datetime import datetime
-import shutil
+from pathlib import Path
 
 import sys
 sys.path.append('./utils/')
 import xnat
 from user import UserModel, db, login
 import uuid
-
+import utils
 
 # tmp_path = '/Users/kolbit01/Documents/PTB/Data/XNAT/WEB_APP/TMP/'
-tmp_path = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
+tmp_path = "/home/sirfuser/Temp/"
 
 app = Flask(__name__, template_folder='templates')
 app.config['DATA_FOLDER'] = os.path.join(os.environ.get('OH_PATH'), 'static/qc_user/')
@@ -168,19 +168,27 @@ def uploader():
             f_name = os.path.join(app.config['DATA_FOLDER'], secure_filename(user.user_id + f.filename))
             f.save(f_name)
 
+            filepath_out = Path(app.config['DATA_FOLDER'])
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
                 zip_info_list = zip.infolist()
                 # Go through list of files and folders and check for h5 files
                 for zip_info in zip_info_list:
                     if not zip_info.is_dir():
-                        cpath, cfile = os.path.split(zip_info.filename)
-                        if os.path.splitext(cfile)[1] == '.h5':
-                            user.add_scan(cpath, cfile)
-                            cfile_name = str(uuid.uuid4())
-                            user.add_raw_data(cpath, cfile, cfile_name)
-                            zip_info.filename = cfile_name + '.h5'
-                            zip.extract(zip_info, path=app.config['DATA_FOLDER'])
+                        czip_content = Path(zip_info.filename)
+                        cpath, cfile = czip_content.parent, czip_content.name 
+                        if utils.valid_extension(czip_content):
+
+                            fname_out = filepath_out / cfile
+                            zip_info.filename = str(cfile)
+                            zip.extract(zip_info, path=filepath_out)
+
+                            if czip_content.suffix == '.dat':
+                                fname_out = utils.convert_dat_file(fname_out)
+
+                            cfile_name = utils.rename_h5_file(fname_out)
+                            user.add_scan(str(cpath), str(cfile))
+                            user.add_raw_data(str(cpath), str(cfile), cfile_name.stem)
 
             db.session.commit()
             return render_template('upload_summary.html', cuser=user)
