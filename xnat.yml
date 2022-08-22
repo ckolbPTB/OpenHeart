@@ -10,6 +10,7 @@ dependencies:
   - matplotlib
   - pip:
     - flask
+    - docker
     - flask-mail
     - flask-sqlalchemy
     - sqlalchemy-mutable
@@ -17,6 +18,3 @@ dependencies:
     - pydicom
     - ismrmrd
     - git+https://github.com/ckolbPTB/pyxnat.git@share_primary
-
-  
-    
