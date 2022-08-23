@@ -9,6 +9,7 @@ dependencies:
   - imageio
   - matplotlib
   - pip:
+    - setuptools
     - flask
     - docker
     - flask-mail
