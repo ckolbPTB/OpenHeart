@@ -1,15 +1,17 @@
+from pathlib import Path
+
 import os
 import tempfile
-
-from pathlib import Path
 
 import pytest
 from openheart import create_app
 from openheart.db import get_db, init_db
 
-with open(Path(__file__).resolve().parent / 'data.sql', 'rb') as f:
-    print(f.read().decode('utf8'))
+
+fpath_dummy_data = Path(__file__).resolve().parent / 'data.sql'
+with fpath_dummy_data.open('rb') as f:
     _data_sql = f.read().decode('utf8')
+
 
 @pytest.fixture
 def app():
@@ -29,9 +31,11 @@ def app():
     os.close(db_fd)
     os.unlink(db_path)
 
+
 @pytest.fixture
 def client(app):
     return app.test_client()
+
 
 @pytest.fixture
 def runner(app):

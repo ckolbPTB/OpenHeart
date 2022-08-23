@@ -17,17 +17,13 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        print(f"We have {email}")
-        print(f"We have {password}")
-
         db = get_db()
 
         error = None
         if not email:
             error = "Email is required."
-        if not password:
+        elif not password:
             error = "Password is required."
-
         if error is None:
             try:
                 db.execute(
@@ -39,7 +35,6 @@ def register():
                 error = f"Email {email} is already registered."
             else:
                 return redirect(url_for("auth.login"))
-
         flash(error)
 
     return render_template('auth/register.html')
