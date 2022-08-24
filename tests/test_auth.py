@@ -21,7 +21,7 @@ def test_register(client, app):
     ('valid@email.com', '', b'Password is required.'),
     ('test@testmail.com', 'test', b'already registered.'),
 ))
-def test_register_validate_input(app, client, email, password, message):
+def test_register_validate_input(client, email, password, message):
 
     response = client.post(
         '/auth/register', data={'email':email, 'password':password}
