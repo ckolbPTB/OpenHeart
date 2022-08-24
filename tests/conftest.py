@@ -10,7 +10,6 @@ from openheart.user import User, db
 from werkzeug.security import generate_password_hash
 
 test_user = User(email='test@testmail.com', password=generate_password_hash('test'))
-other_user = User(email='other@othermail.com', password=generate_password_hash('other'))
 
 
 @pytest.fixture(scope='module')
@@ -24,7 +23,6 @@ def app():
 
     with app.app_context():
         db.session.add(test_user)
-        db.session.add(other_user)
         db.session.commit()
 
     yield app
