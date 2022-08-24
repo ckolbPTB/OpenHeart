@@ -1,16 +1,16 @@
-  numpy
-  scipy
-  imageio
-  matplotlib
-  setuptools
-  flask==2.2.0
-  docker
-  flask-mail
-  flask-sqlalchemy
-  sqlalchemy-mutable
-  flask-login
-  pydicom
-  ismrmrd
-  pytest
-  coverage
-  git+https://github.com/ckolbPTB/pyxnat.git@share_primary
+numpy
+scipy
+imageio
+matplotlib
+setuptools
+flask==2.2.0
+docker
+flask-mail
+flask-sqlalchemy
+sqlalchemy-mutable
+flask-login
+pydicom
+ismrmrd
+pytest
+coverage
+git+https://github.com/ckolbPTB/pyxnat.git@share_primary
