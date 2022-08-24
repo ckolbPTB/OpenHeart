@@ -1,11 +1,11 @@
-from sqlite3 import IntegrityError
+from sqlalchemy.exc import IntegrityError
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
-from openheart.db import get_db
+from openheart.user import db, User
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -17,8 +17,6 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        db = get_db()
-
         error = None
         if not email:
             error = "Email is required."
@@ -26,12 +24,13 @@ def register():
             error = "Password is required."
         if error is None:
             try:
-                db.execute(
-                    "INSERT INTO user (email, password) VALUES (?, ?)",
-                    (email, generate_password_hash(password)),
-                    )
-                db.commit()
-            except db.IntegrityError:
+                new_user = User(email=email, 
+                                password=generate_password_hash(password))
+                
+                db.session.add(new_user)
+                db.session.commit()
+
+            except IntegrityError:
                 error = f"Email {email} is already registered."
             else:
                 return redirect(url_for("auth.login"))
