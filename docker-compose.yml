@@ -1,8 +1,13 @@
 version: '3.8'
+
 services:
-  web:
+  app:
     build: .
     ports:
       - "5001:5001"
     volumes:
       - ./:/app
+      - sql_volume:/db
+
+volumes:
+  sql_volume:
