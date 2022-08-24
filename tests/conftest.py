@@ -5,15 +5,15 @@ import tempfile
 
 import pytest
 from openheart import create_app
-from openheart.db import get_db, init_db
+
+from openheart.user import User, db
+from werkzeug.security import generate_password_hash
+
+test_user = User(email='test@testmail.com', password=generate_password_hash('test'))
+other_user = User(email='other@othermail.com', password=generate_password_hash('other'))
 
 
-fpath_dummy_data = Path(__file__).resolve().parent / 'data.sql'
-with fpath_dummy_data.open('rb') as f:
-    _data_sql = f.read().decode('utf8')
-
-
-@pytest.fixture
+@pytest.fixture(scope='module')
 def app():
     db_fd, db_path = tempfile.mkstemp()
 
@@ -23,8 +23,9 @@ def app():
     })
 
     with app.app_context():
-        init_db()
-        get_db().executescript(_data_sql)
+        db.session.add(test_user)
+        db.session.add(other_user)
+        db.session.commit()
 
     yield app
 

@@ -1,8 +1,6 @@
 import pytest
-from flask import g, session
 
-from openheart.db import get_db
-
+from openheart.user import User
 
 def test_register(client, app):
 
@@ -16,11 +14,7 @@ def test_register(client, app):
     assert response.headers["Location"] == "/auth/login"
 
     with app.app_context():
-        assert get_db().execute(
-            "SELECT * FROM user WHERE email = 'a@b.de'",
-        ).fetchone() is not None
-
-
+        assert User.query.filter_by(email='a@b.de').first() is not None
 
 @pytest.mark.parametrize(('email', 'password', 'message'),(
     ('', '', b'Email is required.'),
@@ -28,6 +22,7 @@ def test_register(client, app):
     ('test@testmail.com', 'test', b'already registered.'),
 ))
 def test_register_validate_input(app, client, email, password, message):
+
     response = client.post(
         '/auth/register', data={'email':email, 'password':password}
     )
