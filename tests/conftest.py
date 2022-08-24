@@ -19,7 +19,7 @@ def app():
 
     app = create_app({
         'TESTING': True,
-        'DATABASE': db_path,
+        'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
     })
 
     with app.app_context():
