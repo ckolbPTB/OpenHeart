@@ -6,6 +6,12 @@ import matplotlib.pyplot as plt
 import hashlib
 import docker
 
+
+from flask import current_app
+from flask_login import current_user
+
+from openheart.user import db, UserModel
+
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
 
@@ -150,3 +156,41 @@ def rename_h5_file(fname_out):
     fname_out.rename(cfile_name)
     print(f"Output is  {cfile_name}")
     return cfile_name
+
+
+
+
+def clean_up_user_files():
+    user = UserModel.query.get(current_user.id)
+    user_id = user.user_id
+
+    # Path where all files are saved
+    cpath = current_app.config['DATA_FOLDER']
+
+    # Delete zip file starting with user.user_id
+    if user_id is not None:
+        f_zip = glob.glob(os.path.join(cpath, user_id + '*.zip'))
+        if len(f_zip) > 0:
+            os.remove(f_zip[0])
+
+    # Delete all files created by user
+    if user.subjects is not None and user.scans is not None:
+        for subject in user.get_subjects():
+            for scan in user.get_scans(subject):
+                # Get unique filename without file ending
+                cfile = user.get_raw_data(subject, scan)
+
+                # Remove the raw data file
+                if os.path.exists(os.path.join(cpath, cfile + '.h5')):
+                    os.remove(os.path.join(cpath, cfile + '.h5'))
+
+                # Remove the (animated) gif file
+                if os.path.exists(os.path.join(cpath, cfile + '.gif')):
+                    os.remove(os.path.join(cpath, cfile + '.gif'))
+
+    # Update user info
+    user.clear_raw_data()
+    with current_app.app_context():
+        db.session.commit()
+
+    return(True)

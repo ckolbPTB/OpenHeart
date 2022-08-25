@@ -11,6 +11,7 @@ from datetime import datetime
 
 import random, os, glob
 from openheart.user import db, UserModel
+from openheart.utils.utils import clean_up_user_files
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -86,38 +87,3 @@ def logout():
     logout_user()
     return redirect('/')
 
-
-
-def clean_up_user_files():
-    user = UserModel.query.get(current_user.id)
-    user_id = user.user_id
-
-    # Path where all files are saved
-    cpath = current_app.config['DATA_FOLDER']
-
-    # Delete zip file starting with user.user_id
-    if user_id is not None:
-        f_zip = glob.glob(os.path.join(cpath, user_id + '*.zip'))
-        if len(f_zip) > 0:
-            os.remove(f_zip[0])
-
-    # Delete all files created by user
-    if user.subjects is not None and user.scans is not None:
-        for subject in user.get_subjects():
-            for scan in user.get_scans(subject):
-                # Get unique filename without file ending
-                cfile = user.get_raw_data(subject, scan)
-
-                # Remove the raw data file
-                if os.path.exists(os.path.join(cpath, cfile + '.h5')):
-                    os.remove(os.path.join(cpath, cfile + '.h5'))
-
-                # Remove the (animated) gif file
-                if os.path.exists(os.path.join(cpath, cfile + '.gif')):
-                    os.remove(os.path.join(cpath, cfile + '.gif'))
-
-    # Update user info
-    user.clear_raw_data()
-    db.session.commit()
-
-    return(True)
