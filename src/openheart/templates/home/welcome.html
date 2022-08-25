@@ -24,7 +24,7 @@
             <p class="lead">
               By clicking the start button below, you agree to the <a href={{url_for("home.terms_conds")}} target="blank" class="link-danger">terms and conditions</a> of the Open Heart repository.
             </p>
-            <form action={{url_for("upload.upload")}} method = "POST">
+            <form action={{url_for("auth.register")}} method = "GET">
               <button type="submit" class="btn btn-danger">Start</button>
             </form>
         </div>
