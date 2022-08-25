@@ -2,7 +2,7 @@ import pyxnat
 from datetime import datetime
 import os, shutil
 import ismrmrd
-import utils
+import openheart.utils as utils
 from zipfile import ZipFile
 
 
