@@ -5,11 +5,11 @@ from flask import (
 # from werkzeug.security import check_password_hash, generate_password_hash
 
 from flask_mail import Message
-from flask_login import current_user, login_user, logout_user, login_manager
+from flask_login import current_user, login_user, logout_user
 
 from datetime import datetime
 
-import random, os, glob
+import random
 from openheart.user import db, UserModel
 from openheart.utils.utils import clean_up_user_files
 
@@ -46,6 +46,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         return redirect(url_for('auth.login', email=email))
+
     return render_template('auth/register.html')
 
 
@@ -72,7 +73,7 @@ def login(email):
             login_user(user)
             return redirect(url_for('upload.upload'))
 
-    return render_template('login.html', user_email=email)
+    return render_template('auth/login.html', user_email=email)
 
 @bp.route('/logout')
 def logout():
