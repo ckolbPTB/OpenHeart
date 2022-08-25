@@ -14,17 +14,17 @@
               Here you can upload new data to the repository. If you want to explore and download the repository please go here.
             </p>
             <p class="lead">
-              If this is your first time at Open Heart, please watch our <a href={{url_for("tutorial_video")}} target="blank" class="link-danger">tutorial video</a>.
+              If this is your first time at Open Heart, please watch our <a href={{url_for("home.tutorial_video")}} target="blank" class="link-danger">tutorial video</a>.
             </p>
             <p class="lead">
               You can upload raw data in <a href="https://ismrmrd.readthedocs.io/en/latest/" target="blank" class="link-danger">ismrmrd</a> format.
-                <a href={{url_for("ismrmrd_tools")}} target="blank" class="link-danger">Here</a> you find additional help and tools to transform your
+                <a href={{url_for("home.ismrmrd_tools")}} target="blank" class="link-danger">Here</a> you find additional help and tools to transform your
                 raw data to ismrmrd format. You can also download a docker instance of your QC software.
             </p>
             <p class="lead">
-              By clicking the start button below, you agree to the <a href={{url_for("terms_conds")}} target="blank" class="link-danger">terms and conditions</a> of the Open Heart repository.
+              By clicking the start button below, you agree to the <a href={{url_for("home.terms_conds")}} target="blank" class="link-danger">terms and conditions</a> of the Open Heart repository.
             </p>
-            <form action="/upload" method = "POST">
+            <form action={{url_for("upload.upload")}} method = "POST">
               <button type="submit" class="btn btn-danger">Start</button>
             </form>
         </div>

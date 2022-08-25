@@ -1,6 +1,6 @@
 import logging
 import os
-from flask import Flask
+from flask import Flask, render_template, redirect, url_for
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
@@ -21,6 +21,7 @@ def create_app(test_config=None):
         MAIL_PORT = 465,
         MAIL_USERNAME = os.environ.get('MAIL_USERNAME'),
         MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD'),
+        DATA_FOLDER='/data/'
     )
 
     if test_config is None:
@@ -39,9 +40,9 @@ def create_app(test_config=None):
         pass
 
     # a simple page that says hello
-    @app.route('/')
-    def hello():
-        return 'Hello, World!'
+    @app.route('/', methods=['GET'])
+    def welcome():
+        return redirect(url_for('home.welcome'))
 
     # initialize the database onto the app
     db.init_app(app)
@@ -51,14 +52,19 @@ def create_app(test_config=None):
 
     login_manager = LoginManager()
     login_manager.init_app(app)
-    
+
     @login_manager.user_loader
     def load_user(userid):
         return UserModel.query.get(userid)
 
+    from . import home
+    app.register_blueprint(home.bp)
 
     from . import auth
     app.register_blueprint(auth.bp)
+
+    from . import upload 
+    app.register_blueprint(upload.bp)
 
     # from . import blog
     # app.register_blueprint(blog.bp)
