@@ -1,8 +1,5 @@
 {% extends 'layout.html' %}
-
-<h1>{% block title %}Register{% endblock %}</h1>
-
-
+{% block title %} Upload {% endblock %}
 {% block content %}
 <div class="container-fluid">
     <div class="row align-items-center">
@@ -11,14 +8,15 @@
         </div>
         <div class="col-6">
             <form action="" method = "POST">
-              <h1> User Registration </h1>
               <div class="form-group-lg">
-                <input type="email" class="form-control" name="email" id="email" placeholder="Enter Email Address">
-                <input type="password" class="form-control" name="password" id="password" placeholder="Enter Password">
+                <label for="UserEmail">Email address</label>
+                <input type="email" class="form-control" name="UserEmail" id="UserEmail" aria-describedby="emailHelp" placeholder="Enter email">
+                <small id="emailHelp" class="form-text text-muted">We'll send you a single-use security token to verify the email address.</small>
               </div>
-              <button type="submit" class="btn btn-danger">Register</button>
+              <button type="submit" class="btn btn-danger">Send token</button>
             </form>
         </div>
   </div>
 </div>
 {% endblock %}
+

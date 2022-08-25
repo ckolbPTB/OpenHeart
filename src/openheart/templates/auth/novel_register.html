@@ -1,0 +1,24 @@
+{% extends 'layout.html' %}
+
+<h1>{% block title %}Register{% endblock %}</h1>
+
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row align-items-center">
+        <div class="col-3 offset-1">
+            <img src="/static/logo_front.png" class="img-fluid" alt="Responsive image" width="200">
+        </div>
+        <div class="col-6">
+            <form action="" method = "POST">
+              <h1> User Registration </h1>
+              <div class="form-group-lg">
+                <input type="email" class="form-control" name="email" id="email" placeholder="Enter Email Address">
+                <input type="password" class="form-control" name="password" id="password" placeholder="Enter Password">
+              </div>
+              <button type="submit" class="btn btn-danger">Register</button>
+            </form>
+        </div>
+  </div>
+</div>
+{% endblock %}
