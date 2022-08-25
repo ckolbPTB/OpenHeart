@@ -11,6 +11,8 @@ services:
       - ./:/app
       - sql_volume:/db
       - sql_volume:/logs
+      - data_volume:/data
 
 volumes:
   sql_volume:
+  data_volume:
