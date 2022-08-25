@@ -12,5 +12,4 @@ RUN pip install -e .
 ENV FLASK_APP "openheart"
 env FLASK_DEBUG "1"
 
-CMD ["python3", "-m", "flask", "init-db", ]
 CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0", "--port=5001"]
