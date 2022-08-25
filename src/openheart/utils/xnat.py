@@ -2,7 +2,8 @@ import pyxnat
 from datetime import datetime
 import os, shutil
 import ismrmrd
-import openheart.utils as utils
+import openheart.utils.utils
+from openheart.utils.utils import ismrmrd_2_xnat
 from zipfile import ZipFile
 
 
@@ -57,7 +58,7 @@ def upload_raw_mr(server_address, username, pw, raw_path, project_name, user, tm
                 # Get ISMRMRD header to populate MrScanData fields
                 dset = ismrmrd.Dataset(os.path.join(tmp_path, raw_file), 'dataset', create_if_needed=False)
                 header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-                xnat_hdr = utils.ismrmrd_2_xnat(header)
+                xnat_hdr = ismrmrd_2_xnat(header)
                 dset.close()
 
                 scan.create(**xnat_hdr)

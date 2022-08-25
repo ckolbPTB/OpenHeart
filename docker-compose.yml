@@ -12,7 +12,9 @@ services:
       - sql_volume:/db
       - sql_volume:/logs
       - data_volume:/data
+      - temp_volume:/temp
 
 volumes:
   sql_volume:
   data_volume:
+  temp_volume:

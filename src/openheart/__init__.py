@@ -22,7 +22,13 @@ def create_app(test_config=None):
         MAIL_PORT = 465,
         MAIL_USERNAME = os.environ.get('MAIL_USERNAME'),
         MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD'),
-        DATA_FOLDER='/data/'
+        DATA_FOLDER='/data/',
+        TEMP_FOLDER='/temp/',
+        XNAT_SERVER=os.environ.get('XNAT_SERVER'),
+        XNAT_ADMIN_USER=os.environ.get('XNAT_ADMIN_USER'),
+        XNAT_ADMIN_PW=os.environ.get('XNAT_ADMIN_PW'),
+        XNAT_PROJECT_ID_VAULT=os.environ.get('XNAT_PROJECT_ID_VAULT'),
+        XNAT_PROJECT_ID_OPEN=os.environ.get('XNAT_PROJECT_ID_OPEN'),
     )
 
     if test_config is None:
