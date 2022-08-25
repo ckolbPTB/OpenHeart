@@ -2,6 +2,7 @@ import logging
 import os
 from flask import Flask, render_template, redirect, url_for
 from flask_login import LoginManager
+from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -43,6 +44,9 @@ def create_app(test_config=None):
     @app.route('/', methods=['GET'])
     def welcome():
         return redirect(url_for('home.welcome'))
+
+    mail = Mail()
+    mail.init_app(app)
 
     # initialize the database onto the app
     db.init_app(app)
