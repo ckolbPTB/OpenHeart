@@ -1,12 +1,13 @@
 import logging
 import os
 from flask import Flask
+from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
 # this must be imported after db is created s.t. the database can pick up the tables form this file
-from openheart.user import User 
+from openheart.user import UserModel 
 
 
 def create_app(test_config=None):
@@ -15,13 +16,17 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='dev',
         # SQLALCHEMY_DATABASE_URI = 'sqlite:////db/open_heart.db'
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///open_heart.db'
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///open_heart.db',
+        MAIL_SERVER ='smtp.gmail.com',
+        MAIL_PORT = 465,
+        MAIL_USERNAME = os.environ.get('MAIL_USERNAME'),
+        MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD'),
     )
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_pyfile('config.py', silent=True)
-        logging.basicConfig(filename='/logs/development.log', level=logging.DEBUG)
+        # logging.basicConfig(filename='/logs/development.log', level=logging.DEBUG)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
@@ -38,10 +43,19 @@ def create_app(test_config=None):
     def hello():
         return 'Hello, World!'
 
+    # initialize the database onto the app
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
+
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    
+    @login_manager.user_loader
+    def load_user(userid):
+        return UserModel.query.get(userid)
+
 
     from . import auth
     app.register_blueprint(auth.bp)
