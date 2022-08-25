@@ -8,6 +8,7 @@ services:
     volumes:
       - ./:/app
       - sql_volume:/db
+      - sql_volume:/logs
 
 volumes:
   sql_volume:
