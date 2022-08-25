@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template, request, current_app)
+    Blueprint, render_template, request, current_app, redirect, url_for)
 from flask_login import login_required, current_user
 
 from werkzeug.utils import secure_filename
@@ -74,5 +74,50 @@ def check():
                                   current_app.config['DATA_FOLDER'], current_app.config['XNAT_PROJECT_ID_VAULT'], user, current_app.config['TEMP_FOLDER'])
         db.session.commit()
 
-        return render_template('check.html')
-    return render_template('check.html')
+        return render_template('upload/check.html')
+    return render_template('upload/check.html')
+
+
+
+
+
+@bp.route('/check_images', methods=['GET', 'POST'])
+@login_required
+def check_images():
+    user = UserModel.query.get(current_user.id)
+    user = xnat.download_dcm_images(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
+                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'], user, 
+                                    current_app.config['TEMP_FOLDER'], current_app.config['DATA_FOLDER'])
+    db.session.commit()
+    print('are_all_reconstructed ', user.are_all_subjects_reconstructed())
+    print('reload ', user.are_all_subjects_reconstructed()==False)
+    return render_template('upload/check_images.html', cuser=user, reload=(user.are_all_subjects_reconstructed()==False))
+
+
+@bp.route('/submit', methods=['GET', 'POST'])
+@login_required
+def submit():
+    if request.method == "POST":
+        user = UserModel.query.get(current_user.id)
+
+        if 'cancel' in request.form:
+            return redirect(url_for('upload.upload'))
+        else:
+            commit_subjects = []
+            commit_xnat_subjects = []
+            delete_xnat_subjects = []
+            for ind in range(user.get_num_xnat_subjects()):
+                if 'check'+str(ind) in request.form:
+                    commit_xnat_subjects.append(user.get_xnat_subjects()[ind])
+                    commit_subjects.append(user.get_subjects()[ind])
+                else:
+                    delete_xnat_subjects.append(user.get_xnat_subjects()[ind])
+
+            xnat.commit_to_open(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
+                                current_app.config['XNAT_PROJECT_ID_VAULT'], current_app.config['XNAT_PROJECT_ID_OPEN'], commit_xnat_subjects)
+            xnat.delete_from_vault(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
+                                   current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'],
+                                   delete_xnat_subjects)
+            return render_template('home/thank_you.html', cuser=user, subjects=commit_subjects, num_subjects=len(commit_subjects))
+
+
