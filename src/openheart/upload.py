@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from zipfile import ZipFile
 
 from datetime import datetime
-import os
+import os, sys
 from pathlib import Path
 
 from openheart.utils import xnat
@@ -26,7 +26,7 @@ def upload():
 @login_required
 def uploader():
     if request.method == 'POST':
-        now = datetime.now().strftime('%y-%m-%d %H:%M:%S')
+        time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
 
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             # Get info from database
@@ -53,8 +53,7 @@ def uploader():
                             zip_info.filename = str(cfile)
                             zip.extract(zip_info, path=filepath_out)
 
-                            subject_timed = secure_filename(f"{cpath}_{now}")
-
+                            subject_timed = f"Subj-{str(cpath)}-{time_id}"
                             file = File(user_id=current_user.id, 
                                         name = str(fname_out),
                                         name_unique="_", 
@@ -77,6 +76,7 @@ def postprocess_upload():
     assert convert_files(), "The conversion of some files failed."
     assert uniquely_identify_files(), "The renaming into md5 hashs failed."
 
+@login_required
 def convert_files():
     list_files = File.query.filter_by(user_id=current_user.id, format='.dat', 
                                       transmitted=False, reconstructed=False).all()
@@ -101,9 +101,6 @@ def uniquely_identify_files():
                                       transmitted=False, reconstructed=False).all()
 
     for file in list_files:
-        print(f"We have file {file.user_id}")
-        print(f"We have {file.name}")
-        print(f"We have {file.name_unique}")
         md5_identifier = utils.rename_h5_file(Path(file.name))
         file.name_unique = str(md5_identifier)
         db.session.commit()
@@ -115,9 +112,20 @@ def uniquely_identify_files():
 @login_required
 def check():
     if request.method == "POST":
-        user = User.query.get(current_user.id)
-        user = xnat.upload_raw_mr(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
-                                  current_app.config['DATA_FOLDER'], current_app.config['XNAT_PROJECT_ID_VAULT'], user, current_app.config['TEMP_FOLDER'])
+        list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
+                                          transmitted=False).all()
+
+        success = xnat.upload_raw_mr(list_files,
+                                    current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
+                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'])
+        current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
+
+        if success:
+            for f in list_files:
+                f.transmitted = True
+        else:
+            raise AssertionError(f"Something with thte xnat upload went wrong.")
+
         db.session.commit()
 
         return render_template('upload/check.html')

@@ -151,17 +151,16 @@ def convert_dat_file(filename, measurement_number=1):
     return filename_output
 
 def rename_h5_file(fname_out):
-    print(f"Tryin to rename {fname_out}")
+    
     md5_hash = md5(str(fname_out))
     cfile_name = (fname_out.parent / md5_hash).with_suffix(".h5")
     try:
+        current_app.logger.info(f"Trying to rename {fname_out} into {cfile_name}.")
         fname_out.rename(cfile_name)
     except FileExistsError:
-        logging.warning(f"You tried to rename {fname_out} into {cfile_name}, but the latter alraedy exists. Ignoring request.")
+        current_app.logger.warning(f"You tried to rename {fname_out} into {cfile_name}, but the latter alraedy exists. Ignoring request.")
 
     return cfile_name
-
-
 
 def clean_up_user_files():
 

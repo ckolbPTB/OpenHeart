@@ -1,13 +1,15 @@
+from uuid import uuid4
 import pyxnat
 from datetime import datetime
-import os, shutil
+import os
 import ismrmrd
-import openheart.utils.utils
 from openheart.utils.utils import ismrmrd_2_xnat
 from zipfile import ZipFile
+from flask import current_app
+import sys
 
+def upload_raw_mr(all_files, server_address, username, pw, project_name):
 
-def upload_raw_mr(server_address, username, pw, raw_path, project_name, user, tmp_path):
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
 
     # Connect to server
@@ -19,61 +21,55 @@ def upload_raw_mr(server_address, username, pw, raw_path, project_name, user, tm
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
 
-    # Upload each raw data file
-    for ind in range(user.get_num_subjects()):
-        # Verify subject does not exist
-        time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
-        subject_id = 'Subj-' + time_id
-        xnat_subject = xnat_project.subject(subject_id)
-        if xnat_subject.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Subject {subject_id} already exists.')
+    # Verify subject does not exist
+    all_subjects = set([f.subject_unique for f in all_files])
 
+
+    for subj_id in all_subjects:
+        current_app.logger.info(f"We will upload files for {subj_id}.")
+
+        subject_files = [f for f in all_files if f.subject_unique == subj_id]
+        xnat_subject = xnat_project.subject(subj_id)
+
+        if xnat_subject.exists():
+            current_app.logger.warning(f'Subject {subj_id} already exists.')
+            xnat_server.disconnect()
+            raise NameError(f'Subject {subj_id} already exists.')
 
         # Add exam
-        experiment_id = 'Exp-' + time_id
+        time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
+        experiment_id = f"Exp-{time_id}"
         experiment = xnat_subject.experiment(experiment_id)
-        if experiment.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Experiment {experiment_id} already exists.')
-        else:
+
+        if not experiment.exists():
             experiment.create(
                 **{'experiments': 'xnat:mrSessionData',
-                   'xnat:mrSessionData/date': experiment_date})
+                    'xnat:mrSessionData/date': experiment_date})
 
-        # Add all scans
-        for snd in range(user.get_num_scans(user.get_subjects()[ind])):
-            scan_id = 'Scan_' + str(snd)
+        for idx, sf in enumerate(subject_files):
+            scan_id = f'Scan_{idx}'
             scan = experiment.scan(scan_id)
             if scan.exists():
-                print(f'Scan {scan_id} already exists')
+                current_app.logger.error(f'Scan generated from {scan_id} already exists.')
             else:
-                # Current raw data file
-                raw_file = user.get_raw_data(user.get_subjects()[ind], user.get_scans(user.get_subjects()[ind])[snd])
-                raw_file += '.h5'
 
-                # Copy each file to temp folder
-                shutil.copyfile(os.path.join(raw_path, raw_file), os.path.join(tmp_path, raw_file))
-
+                current_app.logger.info(f"Starting with upload of {sf.name}, aka. {sf.name_unique}")
                 # Get ISMRMRD header to populate MrScanData fields
-                dset = ismrmrd.Dataset(os.path.join(tmp_path, raw_file), 'dataset', create_if_needed=False)
+                dset = ismrmrd.Dataset(sf.name_unique, 'dataset', create_if_needed=False)
                 header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
                 xnat_hdr = ismrmrd_2_xnat(header)
                 dset.close()
 
                 scan.create(**xnat_hdr)
                 scan_resource = scan.resource('MR_RAW')
-                scan_resource.put_dir(tmp_path, format='HDF5', label='MR_RAW',
-                                      content='RAW', **{'xsi:type': 'xnat:mrScanData'})
+                scan_resource.put([sf.name_unique], format='HDF5', label='MR_RAW', content='RAW', **{'xsi:type': 'xnat:mrScanData'})
 
-                # Remove uploaded file
-                os.remove(os.path.join(tmp_path, raw_file))
+                current_app.logger.info(f"Finished uploading of {sf.name}, aka. {sf.name_unique}")
 
-                # Add xnat info to user
-                user.add_xnat_scan(subject_id, scan_id)
-
+    current_app.logger.info(f"Finished uploading of of data to xnat. Disconnecting...")
     xnat_server.disconnect()
-    return(user)
+
+    return True
 
 
 def download_dcm_images(server_address, username, pw, project_name, user, tmp_path, qc_im_path):
@@ -92,7 +88,6 @@ def download_dcm_images(server_address, username, pw, project_name, user, tmp_pa
     for ind in range(user.get_num_xnat_subjects()):
         # Get current subject
         xnat_subject_user = user.get_xnat_subjects()[ind]
-        print('xnat_subject', xnat_subject_user)
 
         # Verify that subject and experiment exists
         xnat_subject = xnat_project.subject(xnat_subject_user)
