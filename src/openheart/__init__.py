@@ -1,14 +1,16 @@
 import logging
 import os
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, redirect, url_for, g
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
+
 db = SQLAlchemy()
+mail = Mail()
 
 # this must be imported after db is created s.t. the database can pick up the tables form this file
-from openheart.user import UserModel 
+from openheart.user import User 
 
 
 def create_app(test_config=None):
@@ -51,7 +53,7 @@ def create_app(test_config=None):
     def welcome():
         return redirect(url_for('home.welcome'))
 
-    mail = Mail()
+    
     mail.init_app(app)
 
     # initialize the database onto the app
@@ -65,7 +67,7 @@ def create_app(test_config=None):
 
     @login_manager.user_loader
     def load_user(userid):
-        return UserModel.query.get(userid)
+        return User.query.get(userid)
 
     from . import home
     app.register_blueprint(home.bp)
