@@ -15,12 +15,13 @@
       <img src="/static/logo.svg" width="60" height="30" class="d-inline-block align-top" alt="">
       Open Heart
     </a>
-    <!-- {% if g.user %}
-      {% if current_user.is_authenticated %}
-        <a>Logged in as: {{current_user.email}}</a>
-        <a class="link-danger me-4" href="{{ url_for('logout')}}">Logout</a>
-      {% endif %}
-    {% endif %} -->
+
+    {% if g.user %}
+    {% endif %}
+    {% if current_user.is_authenticated %}
+      <a>Logged in as: {{current_user.email}}</a>
+      <a class="link-danger me-4" href="{{ url_for('auth.logout')}}">Logout</a>
+    {% endif %}
 
   </nav>
 
