@@ -35,7 +35,7 @@ def uploader():
             # Save file in upload folder
             f = request.files['file']
             filepath_out = Path(current_app.config['DATA_FOLDER'])
-            f_name =filepath_out / secure_filename(f"{user.id}_{f.filename}")
+            f_name = filepath_out / secure_filename(f"{user.id}_{f.filename}")
             f.save(str(f_name))
 
             # Unzip files
@@ -52,6 +52,7 @@ def uploader():
                             fname_out = filepath_out / cfile
                             zip_info.filename = str(cfile)
                             zip.extract(zip_info, path=filepath_out)
+                            fname_out = fname_out.rename( filepath_out / f"subj_{cpath}_{cfile}")
 
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
                             file = File(user_id=current_user.id, 
