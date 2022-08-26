@@ -15,18 +15,18 @@
 
     <div class="row align-items-center mt-5">
         <div class="col-6 offset-2">
-        {%for i in range(0, cuser.get_num_subjects())%}
-            {% set subject = cuser.get_subjects()[i] %}
-            <p class="lead">
-              {{subject}}
-            </p>
-            <ol>
-            {%for j in range(0, cuser.get_num_scans(subject))%}
-                {% set scan = cuser.get_scans(subject)[j] %}
-                <li>{{scan}}</li>
+        <table>
+            <tr>
+                <th> Subject </th>
+                <th> Filename </th>
+            </tr>
+            {%for f in list_files %}
+                <tr>
+                    <td>{{ f.subject }} </td>
+                    <td>{{ f.name }} </td>
+                </tr>
             {%endfor%}
-            </ol>
-        {%endfor%}
+        </table>
         </div>
     </div>
 

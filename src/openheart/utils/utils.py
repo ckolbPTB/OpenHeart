@@ -1,3 +1,5 @@
+import logging
+from pathlib import Path
 import pydicom
 import imageio
 import glob, os
@@ -6,11 +8,10 @@ import matplotlib.pyplot as plt
 import hashlib
 import docker
 
-
 from flask import current_app
 from flask_login import current_user
 
-from openheart.user import db, UserModel
+from openheart.user import db, File
 
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
@@ -135,7 +136,7 @@ def valid_extension(zipfile_content):
     return zipfile_content.suffix in list_valid_suffixes 
 
 def convert_dat_file(filename, measurement_number=1):
-
+    filename = Path(filename)
     filepath = filename.parent
     volumes = [f"{filepath}:/input", f"{filepath}:/output"] 
 
@@ -150,47 +151,30 @@ def convert_dat_file(filename, measurement_number=1):
     return filename_output
 
 def rename_h5_file(fname_out):
-    print(f"We are renaming {fname_out}")
+    print(f"Tryin to rename {fname_out}")
     md5_hash = md5(str(fname_out))
     cfile_name = (fname_out.parent / md5_hash).with_suffix(".h5")
-    fname_out.rename(cfile_name)
-    print(f"Output is  {cfile_name}")
+    try:
+        fname_out.rename(cfile_name)
+    except FileExistsError:
+        logging.warning(f"You tried to rename {fname_out} into {cfile_name}, but the latter alraedy exists. Ignoring request.")
+
     return cfile_name
 
 
 
-
 def clean_up_user_files():
-    user = UserModel.query.get(current_user.id)
-    user_id = user.user_id
 
-    # Path where all files are saved
-    cpath = current_app.config['DATA_FOLDER']
+    list_user_files = File.query.filter_by(user_id=current_user.id,
+                                           submitted=False).all()
 
-    # Delete zip file starting with user.user_id
-    if user_id is not None:
-        f_zip = glob.glob(os.path.join(cpath, user_id + '*.zip'))
-        if len(f_zip) > 0:
-            os.remove(f_zip[0])
+    for f in list_user_files:
+        if os.path.isfile(f.name):
+            os.remove(f.name)
+        if os.path.isfile(f.name_unique):
+            os.remove(f.name_unique)
+        db.session.delete(f)
 
-    # Delete all files created by user
-    if user.subjects is not None and user.scans is not None:
-        for subject in user.get_subjects():
-            for scan in user.get_scans(subject):
-                # Get unique filename without file ending
-                cfile = user.get_raw_data(subject, scan)
-
-                # Remove the raw data file
-                if os.path.exists(os.path.join(cpath, cfile + '.h5')):
-                    os.remove(os.path.join(cpath, cfile + '.h5'))
-
-                # Remove the (animated) gif file
-                if os.path.exists(os.path.join(cpath, cfile + '.gif')):
-                    os.remove(os.path.join(cpath, cfile + '.gif'))
-
-    # Update user info
-    user.clear_raw_data()
-    with current_app.app_context():
-        db.session.commit()
+    db.session.commit()
 
     return(True)

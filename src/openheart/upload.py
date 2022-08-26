@@ -1,19 +1,19 @@
 from flask import (
-    Blueprint, render_template, request, current_app, redirect, url_for)
+    Blueprint, render_template, request, current_app, redirect, url_for, flash, g)
 from flask_login import login_required, current_user
 
 from werkzeug.utils import secure_filename
 from zipfile import ZipFile
 
+from datetime import datetime
 import os
 from pathlib import Path
 
 from openheart.utils import xnat
 from openheart.utils import utils
-from openheart.user import db, UserModel
+from openheart.user import db, User, File
 
 bp = Blueprint('upload', __name__, url_prefix='/upload')
-
 
 @bp.route('/upload', methods=['GET', 'POST'])
 @login_required
@@ -26,16 +26,18 @@ def upload():
 @login_required
 def uploader():
     if request.method == 'POST':
+        now = datetime.now().strftime('%y-%m-%d %H:%M:%S')
+
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             # Get info from database
-            user = UserModel.query.get(current_user.id)
+            user = User.query.get(current_user.id)
 
             # Save file in upload folder
             f = request.files['file']
-            f_name = os.path.join(current_app.config['DATA_FOLDER'], secure_filename(user.user_id + f.filename))
-            f.save(f_name)
-
             filepath_out = Path(current_app.config['DATA_FOLDER'])
+            f_name =filepath_out / secure_filename(f"{user.id}_{f.filename}")
+            f.save(str(f_name))
+
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
                 zip_info_list = zip.infolist()
@@ -44,32 +46,76 @@ def uploader():
                     if not zip_info.is_dir():
                         czip_content = Path(zip_info.filename)
                         cpath, cfile = czip_content.parent, czip_content.name 
+
                         if utils.valid_extension(czip_content):
 
                             fname_out = filepath_out / cfile
                             zip_info.filename = str(cfile)
                             zip.extract(zip_info, path=filepath_out)
 
-                            if czip_content.suffix == '.dat':
-                                fname_out = utils.convert_dat_file(fname_out)
+                            subject_timed = secure_filename(f"{cpath}_{now}")
 
-                            cfile_name = utils.rename_h5_file(fname_out)
-                            user.add_scan(str(cpath), str(cfile))
-                            user.add_raw_data(str(cpath), str(cfile), cfile_name.stem)
+                            file = File(user_id=current_user.id, 
+                                        name = str(fname_out),
+                                        name_unique="_", 
+                                        subject=str(cpath),
+                                        subject_unique = subject_timed,
+                                        format = czip_content.suffix)
 
-            db.session.commit()
-            return render_template('upload/upload_summary.html', cuser=user)
+                            db.session.add(file)
+                db.session.commit()
+            postprocess_upload()
+
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
+                                              transmitted=False, reconstructed=False).all()
+
+            return render_template('upload/upload_summary.html', list_files=list_files)
 
     return render_template('upload/upload.html')
 
+def postprocess_upload():
+    assert convert_files(), "The conversion of some files failed."
+    assert uniquely_identify_files(), "The renaming into md5 hashs failed."
 
+def convert_files():
+    list_files = File.query.filter_by(user_id=current_user.id, format='.dat', 
+                                      transmitted=False, reconstructed=False).all()
+
+    for file in list_files:
+        fname_out = utils.convert_dat_file(file.name)
+        file = File(file)
+        file.name=fname_out
+        file.format='.h5'
+
+        db.session.add(file)
+
+    db.session.commit()
+
+    return True
+
+def uniquely_identify_files():
+
+    list_files = File.query.filter_by(user_id=current_user.id,
+                                      name_unique = "_",
+                                      format='.h5', 
+                                      transmitted=False, reconstructed=False).all()
+
+    for file in list_files:
+        print(f"We have file {file.user_id}")
+        print(f"We have {file.name}")
+        print(f"We have {file.name_unique}")
+        md5_identifier = utils.rename_h5_file(Path(file.name))
+        file.name_unique = str(md5_identifier)
+        db.session.commit()
+
+    return True
 
 
 @bp.route('/check', methods=["GET", "POST"])
 @login_required
 def check():
     if request.method == "POST":
-        user = UserModel.query.get(current_user.id)
+        user = User.query.get(current_user.id)
         user = xnat.upload_raw_mr(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
                                   current_app.config['DATA_FOLDER'], current_app.config['XNAT_PROJECT_ID_VAULT'], user, current_app.config['TEMP_FOLDER'])
         db.session.commit()
@@ -84,7 +130,7 @@ def check():
 @bp.route('/check_images', methods=['GET', 'POST'])
 @login_required
 def check_images():
-    user = UserModel.query.get(current_user.id)
+    user = User.query.get(current_user.id)
     user = xnat.download_dcm_images(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
                                     current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'], user, 
                                     current_app.config['TEMP_FOLDER'], current_app.config['DATA_FOLDER'])
@@ -98,7 +144,7 @@ def check_images():
 @login_required
 def submit():
     if request.method == "POST":
-        user = UserModel.query.get(current_user.id)
+        user = User.query.get(current_user.id)
 
         if 'cancel' in request.form:
             return redirect(url_for('upload.upload'))
@@ -119,5 +165,3 @@ def submit():
                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'],
                                    delete_xnat_subjects)
             return render_template('home/thank_you.html', cuser=user, subjects=commit_subjects, num_subjects=len(commit_subjects))
-
-
