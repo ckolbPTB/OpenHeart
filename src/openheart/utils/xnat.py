@@ -66,10 +66,17 @@ def upload_raw_mr(all_files, server_address, username, pw, project_name):
 
                 current_app.logger.info(f"Finished uploading of {sf.name}, aka. {sf.name_unique}")
 
+                sf.transmitted =  True
+
+                sf.xnat_subj_id = subj_id
+                sf.xnat_experiment_id = experiment_id
+                sf.xnat_scan_id = scan_id
+
+
     current_app.logger.info(f"Finished uploading of of data to xnat. Disconnecting...")
     xnat_server.disconnect()
 
-    return True
+    return all_files
 
 
 def download_dcm_images(server_address, username, pw, project_name, user, tmp_path, qc_im_path):

@@ -34,9 +34,13 @@ class File(db.Model):
 
     format = db.Column(db.String(6), unique=False)
     transmitted = db.Column(db.Boolean, default=False, nullable=False)
+
     reconstructed = db.Column(db.Boolean, default=False, nullable=False)
     submitted = db.Column(db.Boolean, default=False, nullable=False)
 
+    xnat_subj_id = db.Column(db.String(384), default="_", unique=False)
+    xnat_experiment_id = db.Column(db.String(384), default="_", unique=False)
+    xnat_scan_id = db.Column(db.String(384), default="_", unique=False)
 
 
 
