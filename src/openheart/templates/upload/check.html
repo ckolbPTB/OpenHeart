@@ -21,7 +21,7 @@
     var counter = 0;
     var recon_done = 0;
     var reload = window.setInterval(function () {
-        $.get('/check_images', function(data) {
+        $.get('/upload/check_images', function(data) {
             document.querySelector('p').innerHTML = data;
         });
 
