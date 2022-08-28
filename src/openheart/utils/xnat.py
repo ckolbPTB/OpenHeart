@@ -1,12 +1,15 @@
-from uuid import uuid4
+from pathlib import Path
 import pyxnat
 from datetime import datetime
 import os
 import ismrmrd
-from openheart.utils.utils import ismrmrd_2_xnat
+from openheart.utils import utils
 from zipfile import ZipFile
 from flask import current_app
 import sys
+
+from itertools import chain
+
 
 def upload_raw_mr(all_files, server_address, username, pw, project_name):
 
@@ -57,7 +60,7 @@ def upload_raw_mr(all_files, server_address, username, pw, project_name):
                 # Get ISMRMRD header to populate MrScanData fields
                 dset = ismrmrd.Dataset(sf.name_unique, 'dataset', create_if_needed=False)
                 header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-                xnat_hdr = ismrmrd_2_xnat(header)
+                xnat_hdr = utils.ismrmrd_2_xnat(header)
                 dset.close()
 
                 scan.create(**xnat_hdr)
@@ -79,73 +82,65 @@ def upload_raw_mr(all_files, server_address, username, pw, project_name):
     return all_files
 
 
-def download_dcm_images(server_address, username, pw, project_name, user, tmp_path, qc_im_path):
+def download_dcm_images(file_list, server_address, username, pw, project_name, tmp_path, qc_im_path):
 
     # Connect to server
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
 
-    # Verify project exists
+    # Verify project 
     xnat_project = xnat_server.select.project(project_name)
     if not xnat_project.exists():
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
 
-    # Get dicom of each subject
-    print(user.get_num_xnat_subjects())
-    for ind in range(user.get_num_xnat_subjects()):
-        # Get current subject
-        xnat_subject_user = user.get_xnat_subjects()[ind]
+
+    for f in file_list:
+
+        subj_id = f.xnat_subj_id
+        experiment_id = f.xnat_experiment_id
+        scan_id = f.xnat_scan_id
 
         # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(xnat_subject_user)
+        xnat_subject = xnat_project.subject(subj_id)
         if not xnat_subject.exists():
             xnat_server.disconnect()
             raise NameError(f'Subject {xnat_subject} does not exist.')
 
-        experiment_id = xnat_subject_user.replace('Subj', 'Exp')
         experiment = xnat_subject.experiment(experiment_id)
         if not experiment.exists():
             xnat_server.disconnect()
             raise NameError(f'Experiment {experiment_id} does not exist.')
 
-        # Add all scans
-        for snd in range(user.get_num_xnat_scans(xnat_subject_user)):
-            scan_id = user.get_xnat_scans(xnat_subject_user)[snd]
-            scan = experiment.scan(scan_id)
-            if not scan.exists():
-                xnat_server.disconnect()
-                raise NameError(f'Scan {scan_id} does not exist.')
+        scan = experiment.scan(scan_id)
+        if not scan.exists():
+            xnat_server.disconnect()
+            raise NameError(f'Scan {scan_id} does not exist.')
 
-            # Check if dicom exists
-            if scan.resource('DICOM').exists():
-                # Make sure folder is empty
-                for root, dirs, files in os.walk(tmp_path):
-                    for file in files:
-                        os.remove(os.path.join(root, file))
+        # Check if dicom exists
+        if scan.resource('DICOM').exists():
+            f.reconstructed = True
+            tmp_path_file = Path(tmp_path) / f"temp_file_{f.id}"
+            tmp_path_file.mkdir(parents=True, exist_ok=True)
 
-                # Download dicom and extract it
-                fname_dcm_zip = scan.resource('DICOM').get(tmp_path)
+            # Download dicom and extract it
+            fname_dcm_zip = Path(scan.resource('DICOM').get(str(tmp_path_file)))
+            print(f"We have extracted them to {fname_dcm_zip}.")
+            with ZipFile(fname_dcm_zip, 'r') as zip:
+                zip.extractall(str(tmp_path_file))
 
-                with ZipFile(fname_dcm_zip, 'r') as zip:
-                    zip.extractall(tmp_path)
+            # Create gif
+            cfile = f"animation_file_{f.id}"
+            qc_im_full_filename = utils.create_qc_gif(str(tmp_path_file), qc_im_path, cfile)
+            # current_app.logger.info(f'QC image {qc_im_full_filename} created')
+            files_to_remove = list(chain.from_iterable([sorted(tmp_path_file.glob(f"*{ext}")) for ext in {".zip", ".dcm"}]))
+            print(f"fiels to remove are {files_to_remove}")
+            for tempfiles in files_to_remove:
+                os.remove(str(tempfiles))
 
-                # Create gif
-                subject, scan = user.get_subject_scan_by_idx(ind, snd)
-                print(subject, ' - ', scan)
-                cfile = user.get_raw_data(subject, scan)
-                qc_im_full_filename = utils.create_qc_gif(tmp_path, qc_im_path, cfile)
-                print(f'QC image {qc_im_full_filename} created')
-
-                # Update user info
-                user.set_recon_flag(subject, scan)
-
-                # Delete all files in the tmp folder
-                for root, dirs, files in os.walk(tmp_path):
-                    for file in files:
-                        os.remove(os.path.join(root, file))
+            os.rmdir(str(tmp_path_file))
 
     xnat_server.disconnect()
-    return(user)
+    return file_list
 
 
 def commit_to_open(server_address, username, pw, project_name, project_name_open, xnat_subject_list):
