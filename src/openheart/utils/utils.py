@@ -55,40 +55,16 @@ def min01perc(dat):
     return (dat[int(np.round(dat.shape[0] * 0.01))])
 
 
-def save_gif(im, psave, fsave, cmap='gray', min_max_val=[], total_dur=2):
-
-    # Translate image from grayscale to rgb
-    cmap = plt.get_cmap(cmap)
-    if len(min_max_val) == 0:
-        im = (im - min01perc(im)) / (max99perc(im) - min01perc(im))
-    else:
-        im = (im - min_max_val[0]) / (min_max_val[1] - min_max_val[0])
-    im = cmap(im)
-    im_rgb = (im * 255).astype(np.uint8)[:,:,:,:3]
-
-    # Check for 2D images
-    if len(im_rgb.shape) == 3:
-        im_rgb = im_rgb[:,:,np.newaxis,:]
-
-    anim_im = []
-    dur = []
-    for tnd in range(im_rgb.shape[2]):
-        anim_im.append(im_rgb[:, :, tnd, :])
-        dur.append(total_dur/im_rgb.shape[2])
-    imageio.mimsave(psave + fsave + '.gif', anim_im, duration=dur)
-    return(psave + fsave + '.gif')
-
-
 def create_qc_gif(dicom_path, qc_im_path, upload_file):
 
     # Get all files in directory but ignore files starting with .
-    dcm_files = [os.path.basename(x) for x in glob.glob(dicom_path + '/*.dcm')]
+    dcm_files = sorted([os.path.basename(x) for x in glob.glob(dicom_path + '/*.dcm')])
 
     # Number of images
     num_files = len(dcm_files)
 
     # Get header information for sorting
-    sort_key_words = ['ImageNumber', 'SliceLocation', 'EchoTime']
+    sort_key_words = ['SliceLocation', 'EchoTime']
     sort_idx = np.zeros((len(sort_key_words), num_files), dtype=np.float32)
     for ind in range(num_files):
         ds = pydicom.dcmread(dicom_path + '/' + dcm_files[ind])
@@ -119,10 +95,35 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     ds = np.moveaxis(ds, 0, -1)
     ds = np.reshape(ds, ds.shape[:2] + (-1,))
 
-    qc_im_full_filename = save_gif(ds, qc_im_path, upload_file, cmap='gray', min_max_val=[], total_dur=2)
+    fps = 30
+    gif_dur_seconds = num_files / fps
+    qc_im_full_filename = save_gif(ds, qc_im_path, upload_file, cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
 
     return(qc_im_full_filename)
 
+
+def save_gif(im, psave, fsave, cmap='gray', min_max_val=[], total_dur=2):
+
+    # Translate image from grayscale to rgb
+    cmap = plt.get_cmap(cmap)
+    if len(min_max_val) == 0:
+        im = (im - min01perc(im)) / (max99perc(im) - min01perc(im))
+    else:
+        im = (im - min_max_val[0]) / (min_max_val[1] - min_max_val[0])
+    im = cmap(im)
+    im_rgb = (im * 255).astype(np.uint8)[:,:,:,:3]
+
+    # Check for 2D images
+    if len(im_rgb.shape) == 3:
+        im_rgb = im_rgb[:,:,np.newaxis,:]
+
+    anim_im = []
+    dur = []
+    for tnd in range(im_rgb.shape[2]):
+        anim_im.append(im_rgb[:, :, tnd, :])
+        dur.append(total_dur/im_rgb.shape[2])
+    imageio.mimsave(psave + fsave + '.gif', anim_im, duration=dur)
+    return(psave + fsave + '.gif')
 
 def md5(fname):
     hash_md5 = hashlib.md5()
@@ -151,7 +152,7 @@ def convert_dat_file(filename, measurement_number=1):
     return filename_output
 
 def rename_h5_file(fname_out):
-    
+
     md5_hash = md5(str(fname_out))
     cfile_name = (fname_out.parent / md5_hash).with_suffix(".h5")
     try:
