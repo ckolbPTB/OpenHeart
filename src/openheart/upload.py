@@ -135,20 +135,31 @@ def check():
     return render_template('upload/check.html')
 
 
-
-
-
 @bp.route('/check_images', methods=['GET', 'POST'])
 @login_required
 def check_images():
-    user = User.query.get(current_user.id)
-    user = xnat.download_dcm_images(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
-                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'], user, 
+
+
+
+    files = File.query.filter_by(user_id=current_user.id, format='.h5', 
+                                        transmitted=True, reconstructed=False).all()
+
+    files = xnat.download_dcm_images(files, 
+                                    current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
+                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'],
                                     current_app.config['TEMP_FOLDER'], current_app.config['DATA_FOLDER'])
     db.session.commit()
-    print('are_all_reconstructed ', user.are_all_subjects_reconstructed())
-    print('reload ', user.are_all_subjects_reconstructed()==False)
-    return render_template('upload/check_images.html', cuser=user, reload=(user.are_all_subjects_reconstructed()==False))
+
+    all_recons_performed = True
+    for f in files:
+        all_recons_performed *= f.reconstructed
+
+    if all_recons_performed:
+        current_app.logger.info(f"Downloaded DICOMs.")
+    else:
+        current_app.logger.info(f"Waiting for reconstruction.")
+
+    return render_template('upload/check_images.html', files=files, reload=(all_recons_performed==False))
 
 
 @bp.route('/submit', methods=['GET', 'POST'])
