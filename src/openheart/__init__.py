@@ -18,8 +18,8 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY='dev',
-        # SQLALCHEMY_DATABASE_URI = 'sqlite:////db/open_heart.db'
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///open_heart.db',
+        SQLALCHEMY_DATABASE_URI = 'sqlite:////db/open_heart.db',
+        # SQLALCHEMY_DATABASE_URI = 'sqlite:///open_heart.db',
         MAIL_SERVER ='smtp.gmail.com',
         MAIL_PORT = 465,
         MAIL_USERNAME = os.environ.get('MAIL_USERNAME'),
