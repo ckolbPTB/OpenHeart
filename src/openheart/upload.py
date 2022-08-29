@@ -11,7 +11,7 @@ from pathlib import Path
 
 from openheart.utils import xnat
 from openheart.utils import utils
-from openheart.user import db, User, File
+from openheart.database import db, User, File
 
 bp = Blueprint('upload', __name__, url_prefix='/upload')
 
@@ -52,7 +52,7 @@ def uploader():
                             fname_out = filepath_out / cfile
                             zip_info.filename = str(cfile)
                             zip.extract(zip_info, path=filepath_out)
-                            fname_out = fname_out.rename( filepath_out / f"subj_{cpath}_{cfile}")
+                            fname_out = fname_out.rename( filepath_out / f"user_{current_user.id}_subj_{cpath}_{cfile}")
 
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
                             file = File(user_id=current_user.id, 
@@ -123,7 +123,7 @@ def check():
 
         if success:
             for f in list_files:
-                current_app.logger.info(f"Finished upload request to {f.xnat_subj_id}.")
+                current_app.logger.info(f"Finished upload request to {f.xnat_subject_id}.")
                 current_app.logger.info(f"Finished upload request to {f.xnat_experiment_id}.")
                 current_app.logger.info(f"Finished upload request to {f.xnat_scan_id}.")
         else:
@@ -139,51 +139,70 @@ def check():
 @login_required
 def check_images():
 
-
-
     files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                        transmitted=True, reconstructed=False).all()
+                                        transmitted=True, submitted=False).all()
 
     files = xnat.download_dcm_images(files, 
                                     current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
                                     current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'],
-                                    current_app.config['TEMP_FOLDER'], current_app.config['DATA_FOLDER'])
+                                    current_app.config['TEMP_FOLDER'], "/app/src/openheart/static/animations/")
     db.session.commit()
 
     all_recons_performed = True
     for f in files:
         all_recons_performed *= f.reconstructed
 
-    if all_recons_performed:
-        current_app.logger.info(f"Downloaded DICOMs.")
-    else:
-        current_app.logger.info(f"Waiting for reconstruction.")
-
     return render_template('upload/check_images.html', files=files, reload=(all_recons_performed==False))
+
 
 
 @bp.route('/submit', methods=['GET', 'POST'])
 @login_required
 def submit():
     if request.method == "POST":
-        user = User.query.get(current_user.id)
-
         if 'cancel' in request.form:
             return redirect(url_for('upload.upload'))
         else:
-            commit_subjects = []
-            commit_xnat_subjects = []
-            delete_xnat_subjects = []
-            for ind in range(user.get_num_xnat_subjects()):
-                if 'check'+str(ind) in request.form:
-                    commit_xnat_subjects.append(user.get_xnat_subjects()[ind])
-                    commit_subjects.append(user.get_subjects()[ind])
-                else:
-                    delete_xnat_subjects.append(user.get_xnat_subjects()[ind])
 
-            xnat.commit_to_open(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
-                                current_app.config['XNAT_PROJECT_ID_VAULT'], current_app.config['XNAT_PROJECT_ID_OPEN'], commit_xnat_subjects)
-            xnat.delete_from_vault(current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
-                                   current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'],
-                                   delete_xnat_subjects)
-            return render_template('home/thank_you.html', cuser=user, subjects=commit_subjects, num_subjects=len(commit_subjects))
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
+                                    transmitted=True, reconstructed=True, submitted=False).all()
+
+            files_rejected = []
+            for f in list_files:
+                if 'check'+str(f.id) not in request.form:
+                    files_rejected.append(f)
+
+                xnat.delete_scans_from_vault(files_rejected, 
+                                            current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], 
+                                            current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'])
+                for f in files_rejected:
+                    db.delete(f)
+            db.session().commit()
+
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
+                                            transmitted=True, reconstructed=True, submitted=False).all()
+            files_accepted = []
+            for f in list_files:
+                if 'check'+str(f.id) in request.form:
+                    files_accepted.append(f)
+
+            list_xnat_subjects = xnat.get_unique_xnat_subject_id(files_accepted)
+
+            xnat.commit_subjects_to_open(list_xnat_subjects, 
+                                         current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
+                                         current_app.config['XNAT_PROJECT_ID_VAULT'], current_app.config['XNAT_PROJECT_ID_OPEN'])
+
+            for f in files_accepted:
+                f.submitted = True
+
+            db.session().commit()
+
+            list_rejected_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
+                                                       transmitted=True, submitted=False).all()
+
+            list_rejected_subjects = xnat.get_unique_xnat_subject_id(list_rejected_files)
+            xnat.delete_subjects_from_project(list_rejected_subjects, 
+                                              current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
+                                              current_app.config['XNAT_PROJECT_ID_VAULT'])
+
+        return render_template('home/thank_you.html', submitted_files=list_files)

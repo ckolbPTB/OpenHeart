@@ -11,7 +11,7 @@ import docker
 from flask import current_app
 from flask_login import current_user
 
-from openheart.user import db, File
+from openheart.database import db, File
 
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
@@ -165,16 +165,17 @@ def rename_h5_file(fname_out):
 
 def clean_up_user_files():
 
-    list_user_files = File.query.filter_by(user_id=current_user.id,
-                                           submitted=False).all()
+    if current_user.is_authenticated:
+        list_user_files = File.query.filter_by(user_id=current_user.id,
+                                            submitted=False).all()
 
-    for f in list_user_files:
-        if os.path.isfile(f.name):
-            os.remove(f.name)
-        if os.path.isfile(f.name_unique):
-            os.remove(f.name_unique)
-        db.session.delete(f)
+        for f in list_user_files:
+            if os.path.isfile(f.name):
+                os.remove(f.name)
+            if os.path.isfile(f.name_unique):
+                os.remove(f.name_unique)
+            db.session.delete(f)
 
-    db.session.commit()
+        db.session.commit()
 
     return(True)
