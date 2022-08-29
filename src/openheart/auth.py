@@ -11,7 +11,7 @@ from datetime import datetime
 
 import random
 from openheart import mail
-from openheart.user import db, User
+from openheart.database import db, User
 from openheart.utils import utils
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
