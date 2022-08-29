@@ -10,7 +10,7 @@ db = SQLAlchemy()
 mail = Mail()
 
 # this must be imported after db is created s.t. the database can pick up the tables form this file
-from openheart.user import User 
+from openheart.database import User 
 
 
 def create_app(test_config=None):

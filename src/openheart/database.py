@@ -38,11 +38,9 @@ class File(db.Model):
     reconstructed = db.Column(db.Boolean, default=False, nullable=False)
     submitted = db.Column(db.Boolean, default=False, nullable=False)
 
-    xnat_subj_id = db.Column(db.String(384), default="_", unique=False)
+    xnat_subject_id = db.Column(db.String(384), default="_", unique=False)
     xnat_experiment_id = db.Column(db.String(384), default="_", unique=False)
     xnat_scan_id = db.Column(db.String(384), default="_", unique=False)
-
-
 
 
 # class UserModel(UserMixin, db.Model):
