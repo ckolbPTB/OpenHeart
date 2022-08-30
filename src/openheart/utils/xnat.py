@@ -10,6 +10,23 @@ import sys
 
 from itertools import chain
 
+def get_xnat_connection():
+    xnat_server = pyxnat.Interface(server=current_app.config['XNAT_SERVER'], user=current_app.config['XNAT_ADMIN_USER'], password=current_app.config['XNAT_ADMIN_PW'])
+    return xnat_server
+
+def get_xnat_project(xnat_server, name_project):
+
+    xnat_project = xnat_server.select.project(current_app.config[name_project])
+
+    if not xnat_project.exists():
+        xnat_server.disconnect()
+        raise NameError(f'Project {current_app.config[name_project]} not available on server.')
+
+    return xnat_project
+
+def get_xnat_vault_project(xnat_server):
+    return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
+
 
 def upload_raw_mr(list_files, server_address, username, pw, project_name):
 
@@ -80,6 +97,37 @@ def upload_raw_mr(list_files, server_address, username, pw, project_name):
 
     return list_files
 
+def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file):
+
+    xnat_project = get_xnat_project(xnat_sever, name_project)
+
+    subject_id = xnat_file["subject_id"]
+    experiment_id = xnat_file["experiment_id"]
+    scan_id = xnat_file["scan_id"]
+
+    experiment_date = xnat_file["experiment_date"]
+
+    xnat_subject = xnat_project.subject(subject_id)
+
+    if xnat_subject.exists():
+        current_app.logger.warning(f'Subject {subject_id} already exists.')
+
+    experiment = xnat_subject.experiment(experiment_id)
+
+    if not experiment.exists():
+        experiment.create(
+            **{'experiments': 'xnat:mrSessionData',
+                'xnat:mrSessionData/date': experiment_date})
+
+    scan = experiment.scan(scan_id)
+
+    if scan.exists():
+        current_app.logger.error(f'Scan {scan_id} in experiment {experiment_id} in subject {subject_id} already exists.')
+        raise NameError(f"The scan {scan_id} already exists for subject {subject_id} and experiment {experiment_id}")
+    else:
+        scan.create(**scan_hdr)
+
+    return True
 
 def get_unique_attribute(list_of_objects, attribute):
     return set([getattr(obj,attribute) for obj in list_of_objects])
@@ -87,11 +135,17 @@ def get_unique_attribute(list_of_objects, attribute):
 def get_subject_uniques(list_files):
     return get_unique_attribute(list_files, 'subject_unique')
 
-def get_unique_xnat_exp_id(list_files):
-    return get_unique_attribute(list_files, 'xnat_experiment_id')
-
 def get_unique_xnat_subject_id(list_files):
     return get_unique_attribute(list_files, 'xnat_subject_id')
+
+def get_unique_xnat_exp_id(list_files, subj_id=None):
+    if subj_id is None:
+        return get_unique_attribute(list_files, 'xnat_experiment_id')
+    else:
+        list_files_of_subj = [f for f in list_files if f.xnat_subject_id == subj_id]
+        return get_unique_attribute(list_files_of_subj, 'xnat_experiment_id')
+
+
 
 def download_dcm_images(file_list, server_address, username, pw, project_name, tmp_path, qc_im_path):
 
@@ -140,27 +194,46 @@ def check_if_file_was_reconstructed(xnat_server, f, project_name):
     else:
          return False, scan
 
-def commit_subjects_to_open(list_xnat_subject_id, server_address, username, pw, project_name, project_name_open):
+def commit_subjects_to_open(list_files_to_commit, server_address, username, pw, project_name, project_name_open):
+
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
+    xnat_project = xnat_server.select.project(project_name)
+    if not xnat_project.exists():
+        xnat_server.disconnect()
+        raise NameError(f'Project {project_name} not available on server.')
+
+    list_xnat_subject_id = get_unique_xnat_subject_id(list_files_to_commit)
 
     # Verify project exists
     for xnsid in list_xnat_subject_id:
-        xnat_project = xnat_server.select.project(project_name)
-        if not xnat_project.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Project {project_name} not available on server.')
-
         # Verify that subject and experiment exists
         xnat_subject = xnat_project.subject(xnsid)
         if not xnat_subject.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Subject {xnsid} does not exist.')
+            current_app.logger.warning(f"The subject with id {xnsid} does not exist.")
+            continue
+        list_xnat_exp_id = get_unique_xnat_exp_id(list_files_to_commit, subj_id = xnsid)
 
         xnat_subject.share(project_name_open, primary=True)
+
+        for xneid in list_xnat_exp_id:
+            experiment = xnat_subject.experiment(xneid)
+            if not experiment.exists():
+                current_app.logger.warning(f"The experiment with id {xneid} does not exist.")
+                continue
+            experiment.share(project_name_open, primary=True)
 
     xnat_server.disconnect()
 
     return True
+
+def get_list_subjects_and_experiments(list_files_to_commit, server_address, username, pw, project_name):
+    xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
+    xnat_project = xnat_server.select.project(project_name)
+    if not xnat_project.exists():
+        xnat_server.disconnect()
+        raise NameError(f'Project {project_name} not available on server.')
+
+
 
 def delete_scans_from_vault(list_files, server_address, username, pw, project_name):
 
