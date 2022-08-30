@@ -142,10 +142,7 @@ def check_images():
     files = File.query.filter_by(user_id=current_user.id, format='.h5', 
                                         transmitted=True, submitted=False).all()
 
-    files = xnat.download_dcm_images(files, 
-                                    current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
-                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'],
-                                    current_app.config['TEMP_FOLDER'], "/app/src/openheart/static/animations/")
+    files = xnat.download_dcm_images(files)
     db.session.commit()
 
     all_recons_performed = True
@@ -186,11 +183,7 @@ def submit():
                 if 'check'+str(f.id) in request.form:
                     files_accepted.append(f)
 
-            list_xnat_subjects = xnat.get_unique_xnat_subject_id(files_accepted)
-
-            xnat.commit_subjects_to_open(list_xnat_subjects, 
-                                         current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
-                                         current_app.config['XNAT_PROJECT_ID_VAULT'], current_app.config['XNAT_PROJECT_ID_OPEN'])
+            xnat.commit_subjects_to_open(files_accepted)
 
             for f in files_accepted:
                 f.submitted = True
