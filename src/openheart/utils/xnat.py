@@ -143,6 +143,47 @@ def upload_rawdata_file_to_scan(xnat_sever, name_project, xnat_file_dict, list_f
 
     return True, scan
 
+
+def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_output):
+
+    fpath_output = Path(fpath_output)
+
+    xnat_project = get_xnat_project(xnat_server, name_project)
+    subject_id = xnat_file_dict["subject_id"]
+    experiment_id = xnat_file_dict["experiment_id"]
+    scan_id = xnat_file_dict["scan_id"]
+
+    __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
+
+    if check_if_scan_was_reconstructed(scan):
+
+        # Download dicom and extract it
+        fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
+        print(f"We have extracted them to {fname_dcm_zip}.")
+        with ZipFile(fname_dcm_zip, 'r') as zip:
+            zip.extractall(str(fpath_output))
+
+        remove_files_from_path(fpath_output, {".zip"})
+
+        return True
+    else:
+        return False
+
+def remove_files_from_path(fpath, list_extensions):
+    files_to_remove = list(chain.from_iterable([sorted(fpath.glob(f"*{ext}")) for ext in list_extensions]))
+    for f in files_to_remove:
+        os.remove(str(f))
+
+def create_gif_from_downloaded_recon(fpath_dicoms, qc_im_path, filename_output):
+
+    # Create gif
+    qc_im_full_filename = utils.create_qc_gif(str(fpath_dicoms), str(qc_im_path), str(filename_output))
+    current_app.logger.info(f'QC image {qc_im_full_filename} created')
+    remove_files_from_path(Path(fpath_dicoms), {".dcm"})
+
+    return True, qc_im_full_filename
+
+
 def check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id):
 
     xnat_subject = xnat_project.subject(subject_id)
@@ -158,7 +199,6 @@ def check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id):
         raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
 
     return xnat_subject, experiment, scan
-
 
 def get_unique_attribute(list_of_objects, attribute):
     return set([getattr(obj,attribute) for obj in list_of_objects])
@@ -187,7 +227,7 @@ def download_dcm_images(file_list, server_address, username, pw, project_name, t
         if f.reconstructed:
             continue
         # Check if dicom exists
-        recon_performed, scan = check_if_file_was_reconstructed(xnat_server, f, project_name)
+        recon_performed, scan = check_if_scan_was_reconstructed(xnat_server, f, project_name)
         if recon_performed:
 
             tmp_path_file = Path(tmp_path) / f"temp_file_{f.id}"
@@ -195,7 +235,6 @@ def download_dcm_images(file_list, server_address, username, pw, project_name, t
 
             # Download dicom and extract it
             fname_dcm_zip = Path(scan.resource('DICOM').get(str(tmp_path_file)))
-            print(f"We have extracted them to {fname_dcm_zip}.")
             with ZipFile(fname_dcm_zip, 'r') as zip:
                 zip.extractall(str(tmp_path_file))
 
@@ -217,13 +256,13 @@ def download_dcm_images(file_list, server_address, username, pw, project_name, t
 
     return file_list
 
-def check_if_file_was_reconstructed(xnat_server, f, project_name):
-    __, __, __, scan = verify_file_existence(xnat_server, f, project_name)
+def check_if_scan_was_reconstructed(scan):
+
     # Check if dicom exists
     if scan.resource('DICOM').exists():
-        return True, scan
+        return True
     else:
-         return False, scan
+         return False
 
 def commit_subjects_to_open(list_files_to_commit, server_address, username, pw, project_name, project_name_open):
 
@@ -263,8 +302,6 @@ def get_list_subjects_and_experiments(list_files_to_commit, server_address, user
     if not xnat_project.exists():
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
-
-
 
 
 def delete_scans_from_vault(list_files, server_address, username, pw, project_name):

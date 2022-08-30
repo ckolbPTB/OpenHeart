@@ -1,6 +1,7 @@
 import pytest
 
 import tempfile
+from pathlib import Path
 from uuid import uuid4
 from conftest import app, test_files
 from openheart.utils import xnat
@@ -45,6 +46,22 @@ def create_mock_xnat_scans_dict():
                 xnat_files.append(cfile)
 
     return xnat_files
+
+
+def upload_DICOM_files_to_scan(xnat_sever, name_project, xnat_file_dict, list_filenames_dicoms):
+
+    xnat_project = xnat.get_xnat_project(xnat_sever, name_project)
+    subject_id = xnat_file_dict["subject_id"]
+    experiment_id = xnat_file_dict["experiment_id"]
+    scan_id = xnat_file_dict["scan_id"]
+
+    __, __, scan = xnat.check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
+
+    scan_resource = scan.resource('DICOM')
+    scan_resource.put(list_filenames_dicoms, format='DCM', label='DICOM', content='IMAGE', **{'xsi:type': 'xnat:mrScanData'})
+
+    return True, scan
+
 
 def test_get_xnat_connection(app):
     with app.app_context():
@@ -108,6 +125,68 @@ def test_upload_rawdata_file_to_scan(app):
 
         assert success, "Something went wront with the uplaod of the file to the XNAT"
 
+        xnat_server.disconnect()
+
+def test_download_dcm_from_scan(app):
+    filepath_dicoms = Path('/test/input/dicoms')
+    filepath_test_output = Path('/test/output')
+
+    list_fnames_dicoms = sorted(filepath_dicoms.glob("*.dcm"))
+    list_fnames_dicoms = [str(fn) for fn in list_fnames_dicoms]
+
+    num_dicoms_upload = len(list_fnames_dicoms)
+
+    xnat_files = create_mock_xnat_scans_dict()
+    xnat_files = xnat_files[:2]
+
+    with app.app_context():
+        xnat_server = xnat.get_xnat_connection()
+        success = True
+
+        for f in xnat_files:
+            success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', mock_xnat_scan_hdr(), f)
+
+        for f in xnat_files:
+            upload_ok, __ = upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, list_fnames_dicoms)
+            assert upload_ok, "The upload of the dicom files failed"
+
+        for f in xnat_files:
+            success *= xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, filepath_test_output)
+
+            num_dicoms_download = sorted(filepath_test_output.glob("*.dcm"))
+            assert num_dicoms_upload == num_dicoms_upload, f"For {f} the # dicoms downloaded !=  # uploaded {num_dicoms_download} vs {num_dicoms_upload}"
+
+        delete_subjects_from_open(xnat_server, app, xnat_files)
+
+        assert success, "Something went wrong with the dicoms download of the file to the XNAT."
+        xnat_server.disconnect()
+
+def test_create_gif_from_downloaded_recon(app):
+    
+    filepath_dicoms = Path('/test/input/dicoms')
+    filepath_test_output = Path('/test/output')
+
+    list_fnames_dicoms = sorted(filepath_dicoms.glob("*.dcm"))
+    list_fnames_dicoms = [str(fn) for fn in list_fnames_dicoms]
+
+    xnat_files = create_mock_xnat_scans_dict()
+    xnat_files = xnat_files[:2]
+
+    with app.app_context():
+        xnat_server = xnat.get_xnat_connection()
+
+        for f in xnat_files:
+            assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
+            assert upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
+            assert xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, filepath_test_output), f"Downloading the reconstructio of {f} failed"
+
+            fname_gif = f'animation_exp_{f["experiment_id"]}'
+            gif_success, fpath_gif = xnat.create_gif_from_downloaded_recon(filepath_test_output, filepath_test_output, '/' + fname_gif)
+            assert gif_success, f"The construction of the gif failed."
+            fpath_gif = Path(fpath_gif)
+            assert fpath_gif.exists(), f"The gif does not exist at the filepath that create_gif_from_downloaded_recon was  failed."
+
+        delete_subjects_from_open(xnat_server, app, xnat_files)
         xnat_server.disconnect()
 
 def test_create_subject_in_vault():
