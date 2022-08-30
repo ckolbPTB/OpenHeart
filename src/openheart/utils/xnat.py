@@ -129,6 +129,37 @@ def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file):
 
     return True
 
+def upload_rawdata_file_to_scan(xnat_sever, name_project, xnat_file_dict, list_filenames_rawdata):
+
+    xnat_project = get_xnat_project(xnat_sever, name_project)
+    subject_id = xnat_file_dict["subject_id"]
+    experiment_id = xnat_file_dict["experiment_id"]
+    scan_id = xnat_file_dict["scan_id"]
+
+    __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
+
+    scan_resource = scan.resource('MR_RAW')
+    scan_resource.put(list_filenames_rawdata, format='HDF5', label='MR_RAW', content='RAW', **{'xsi:type': 'xnat:mrScanData'})
+
+    return True, scan
+
+def check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id):
+
+    xnat_subject = xnat_project.subject(subject_id)
+    if not xnat_subject.exists():
+        raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
+
+    experiment = xnat_subject.experiment(experiment_id)
+    if not experiment.exists():
+        raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
+
+    scan = experiment.scan(scan_id)
+    if not scan.exists():
+        raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
+
+    return xnat_subject, experiment, scan
+
+
 def get_unique_attribute(list_of_objects, attribute):
     return set([getattr(obj,attribute) for obj in list_of_objects])
 
@@ -232,6 +263,7 @@ def get_list_subjects_and_experiments(list_files_to_commit, server_address, user
     if not xnat_project.exists():
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
+
 
 
 
