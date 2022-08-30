@@ -23,10 +23,10 @@ def teardown_xnat_file(xnat_server, name_project, xnat_file):
     if xnat_subject.exists():
         xnat_subject.delete(delete_files=True)
 
-def delete_subjects_from_open(xnat_server, app, xnat_dicts):
+def delete_subjects_from_vault(xnat_server, app, xnat_dicts):
     try:
         for f in xnat_dicts:
-            teardown_xnat_file(xnat_server, 'XNAT_PROJECT_ID_OPEN', f)
+            teardown_xnat_file(xnat_server, 'XNAT_PROJECT_ID_VAULT', f)
     except NameError:
         app.logger.debug(f"In test trying to delete an xnat scan that doesnt exist: {f}")
 
@@ -63,143 +63,149 @@ def upload_DICOM_files_to_scan(xnat_sever, name_project, xnat_file_dict, list_fi
     return True, scan
 
 
-def test_get_xnat_connection(app):
-    with app.app_context():
-        xnat_server = xnat.get_xnat_connection()
-        assert True, "The connection to the XNAT could not be established."
-        xnat_server.disconnect() 
+# def test_get_xnat_connection(app):
+#     with app.app_context():
+#         xnat_server = xnat.get_xnat_connection()
+#         assert True, "The connection to the XNAT could not be established."
+#         xnat_server.disconnect() 
 
 
-@pytest.mark.parametrize(('projectname'),(
-    ('XNAT_PROJECT_ID_VAULT'),
-    ('XNAT_PROJECT_ID_OPEN'),
-))
-def test_get_xnat_project(app, projectname):
-    with app.app_context():
-        xnat_server = xnat.get_xnat_connection()
-        proj = xnat.get_xnat_project(xnat_server, projectname)
-        assert proj.exists(), f"The project {projectname} does not exist."
-        xnat_server.disconnect()
+# @pytest.mark.parametrize(('projectname'),(
+#     ('XNAT_PROJECT_ID_VAULT'),
+#     ('XNAT_PROJECT_ID_OPEN'),
+# ))
+# def test_get_xnat_project(app, projectname):
+#     with app.app_context():
+#         xnat_server = xnat.get_xnat_connection()
+#         proj = xnat.get_xnat_project(xnat_server, projectname)
+#         assert proj.exists(), f"The project {projectname} does not exist."
+#         xnat_server.disconnect()
 
-def test_create_xnat_scan(app):
-    xnat_dicts = create_mock_xnat_scans_dict()
-    with app.app_context():
-        xnat_server = xnat.get_xnat_connection()
-        success = True
-        try:
-            for f in xnat_dicts:
-                success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', mock_xnat_scan_hdr(), f)
-        except NameError:
-            success *= False
+# def test_create_xnat_scan(app):
+#     xnat_dicts = create_mock_xnat_scans_dict()
+#     with app.app_context():
+#         xnat_server = xnat.get_xnat_connection()
+#         success = True
+#         try:
+#             for f in xnat_dicts:
+#                 success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f)
+#         except NameError:
+#             success *= False
 
-        delete_subjects_from_open(xnat_server, app, xnat_dicts)
+#         delete_subjects_from_vault(xnat_server, app, xnat_dicts)
 
-        xnat_server.disconnect()
+#         xnat_server.disconnect()
 
-    assert success, "You did not successfully create every scan from the list. Probably they already existed."
+#     assert success, "You did not successfully create every scan from the list. Probably they already existed."
 
 
-def test_upload_rawdata_file_to_scan(app):
+# def test_upload_rawdata_file_to_scan(app):
 
+#     xnat_files = create_mock_xnat_scans_dict()
+#     xnat_files = xnat_files[:2]
+#     with app.app_context():
+#         xnat_server = xnat.get_xnat_connection()
+#         success = True
+
+#         try:
+#             for f in xnat_files:
+#                 success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f)
+#         except NameError:
+#             success = False
+
+#         tmp_rawfile = tempfile.NamedTemporaryFile(delete=False)
+#         try:
+#             for f in xnat_files:
+#                 upload_ok, __ = xnat.upload_rawdata_file_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, [tmp_rawfile.name])
+#                 success *= upload_ok
+#         except NameError:
+#             success = False
+
+#         delete_subjects_from_vault(xnat_server, app, xnat_files)
+
+#         assert success, "Something went wront with the uplaod of the file to the XNAT"
+
+#         xnat_server.disconnect()
+
+# def test_download_dcm_from_scan(app):
+#     filepath_dicoms = Path('/test/input/dicoms')
+#     filepath_test_output = Path('/test/output')
+
+#     list_fnames_dicoms = sorted(filepath_dicoms.glob("*.dcm"))
+#     list_fnames_dicoms = [str(fn) for fn in list_fnames_dicoms]
+
+#     num_dicoms_upload = len(list_fnames_dicoms)
+
+#     xnat_files = create_mock_xnat_scans_dict()
+#     xnat_files = xnat_files[:2]
+
+#     with app.app_context():
+#         xnat_server = xnat.get_xnat_connection()
+#         success = True
+
+#         for f in xnat_files:
+#             success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f)
+
+#         for f in xnat_files:
+#             upload_ok, __ = upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, list_fnames_dicoms)
+#             assert upload_ok, "The upload of the dicom files failed"
+
+#         for f in xnat_files:
+#             success *= xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, filepath_test_output)
+
+#             num_dicoms_download = sorted(filepath_test_output.glob("*.dcm"))
+#             assert num_dicoms_upload == num_dicoms_upload, f"For {f} the # dicoms downloaded !=  # uploaded {num_dicoms_download} vs {num_dicoms_upload}"
+
+#         delete_subjects_from_vault(xnat_server, app, xnat_files)
+
+#         assert success, "Something went wrong with the dicoms download of the file to the XNAT."
+#         xnat_server.disconnect()
+
+# def test_create_gif_from_downloaded_recon(app):
+    
+#     filepath_dicoms = Path('/test/input/dicoms')
+#     filepath_test_output = Path('/test/output')
+
+#     list_fnames_dicoms = sorted(filepath_dicoms.glob("*.dcm"))
+#     list_fnames_dicoms = [str(fn) for fn in list_fnames_dicoms]
+
+#     xnat_files = create_mock_xnat_scans_dict()
+#     xnat_files = xnat_files[:2]
+
+#     with app.app_context():
+#         xnat_server = xnat.get_xnat_connection()
+
+#         for f in xnat_files:
+#             assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
+#             assert upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
+#             assert xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, filepath_test_output), f"Downloading the reconstructio of {f} failed"
+
+#             fname_gif = f'animation_sub_{f["subject_id"]}_exp_{f["experiment_id"]}_scan_{f["scan_id"]}'
+
+#             gif_success, fpath_gif = xnat.create_gif_from_downloaded_recon(filepath_test_output, filepath_test_output, '/' + fname_gif)
+#             assert gif_success, f"The construction of the gif failed."
+#             fpath_gif = Path(fpath_gif)
+#             assert fpath_gif.exists(), f"The gif does not exist at the filepath that create_gif_from_downloaded_recon was  failed."
+
+#         delete_subjects_from_vault(xnat_server, app, xnat_files)
+#         xnat_server.disconnect()
+
+def test_share_list_of_scans(app):
     xnat_files = create_mock_xnat_scans_dict()
-    xnat_files = xnat_files[:2]
+
     with app.app_context():
         xnat_server = xnat.get_xnat_connection()
-        success = True
-
-        try:
-            for f in xnat_files:
-                success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', mock_xnat_scan_hdr(), f)
-        except NameError:
-            success = False
 
         tmp_rawfile = tempfile.NamedTemporaryFile(delete=False)
-        try:
-            for f in xnat_files:
-                upload_ok, __ = xnat.upload_rawdata_file_to_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, [tmp_rawfile.name])
-                success *= upload_ok
-        except NameError:
-            success = False
 
-        delete_subjects_from_open(xnat_server, app, xnat_files)
+        for f in xnat_files:
+            assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
+            assert xnat.upload_rawdata_file_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, [tmp_rawfile.name])[0], f"Uploading of rawdata to XNAT server failed."
 
-        assert success, "Something went wront with the uplaod of the file to the XNAT"
+        assert xnat.share_list_of_scans(xnat_server, xnat_files)
+
+        delete_subjects_from_vault(xnat_server, app, xnat_files)
 
         xnat_server.disconnect()
 
-def test_download_dcm_from_scan(app):
-    filepath_dicoms = Path('/test/input/dicoms')
-    filepath_test_output = Path('/test/output')
 
-    list_fnames_dicoms = sorted(filepath_dicoms.glob("*.dcm"))
-    list_fnames_dicoms = [str(fn) for fn in list_fnames_dicoms]
-
-    num_dicoms_upload = len(list_fnames_dicoms)
-
-    xnat_files = create_mock_xnat_scans_dict()
-    xnat_files = xnat_files[:2]
-
-    with app.app_context():
-        xnat_server = xnat.get_xnat_connection()
-        success = True
-
-        for f in xnat_files:
-            success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', mock_xnat_scan_hdr(), f)
-
-        for f in xnat_files:
-            upload_ok, __ = upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, list_fnames_dicoms)
-            assert upload_ok, "The upload of the dicom files failed"
-
-        for f in xnat_files:
-            success *= xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, filepath_test_output)
-
-            num_dicoms_download = sorted(filepath_test_output.glob("*.dcm"))
-            assert num_dicoms_upload == num_dicoms_upload, f"For {f} the # dicoms downloaded !=  # uploaded {num_dicoms_download} vs {num_dicoms_upload}"
-
-        delete_subjects_from_open(xnat_server, app, xnat_files)
-
-        assert success, "Something went wrong with the dicoms download of the file to the XNAT."
-        xnat_server.disconnect()
-
-def test_create_gif_from_downloaded_recon(app):
-    
-    filepath_dicoms = Path('/test/input/dicoms')
-    filepath_test_output = Path('/test/output')
-
-    list_fnames_dicoms = sorted(filepath_dicoms.glob("*.dcm"))
-    list_fnames_dicoms = [str(fn) for fn in list_fnames_dicoms]
-
-    xnat_files = create_mock_xnat_scans_dict()
-    xnat_files = xnat_files[:2]
-
-    with app.app_context():
-        xnat_server = xnat.get_xnat_connection()
-
-        for f in xnat_files:
-            assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
-            assert upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
-            assert xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_OPEN', f, filepath_test_output), f"Downloading the reconstructio of {f} failed"
-
-            fname_gif = f'animation_exp_{f["experiment_id"]}'
-            gif_success, fpath_gif = xnat.create_gif_from_downloaded_recon(filepath_test_output, filepath_test_output, '/' + fname_gif)
-            assert gif_success, f"The construction of the gif failed."
-            fpath_gif = Path(fpath_gif)
-            assert fpath_gif.exists(), f"The gif does not exist at the filepath that create_gif_from_downloaded_recon was  failed."
-
-        delete_subjects_from_open(xnat_server, app, xnat_files)
-        xnat_server.disconnect()
-
-def test_create_subject_in_vault():
-    pass
-
-def upload_raw_mr():
-    pass
-
-def test_download_dcm_images():
-    pass
-
-def test_commit_subjects_to_open():
-    pass
-
-def test_delete_from_vault():
-    pass

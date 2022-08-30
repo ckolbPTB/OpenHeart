@@ -27,6 +27,8 @@ def get_xnat_project(xnat_server, name_project):
 def get_xnat_vault_project(xnat_server):
     return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
 
+def get_xnat_open_project(xnat_server):
+    return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_OPEN')
 
 def upload_raw_mr(list_files, server_address, username, pw, project_name):
 
@@ -159,7 +161,6 @@ def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_outp
 
         # Download dicom and extract it
         fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
-        print(f"We have extracted them to {fname_dcm_zip}.")
         with ZipFile(fname_dcm_zip, 'r') as zip:
             zip.extractall(str(fpath_output))
 
@@ -168,11 +169,6 @@ def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_outp
         return True
     else:
         return False
-
-def remove_files_from_path(fpath, list_extensions):
-    files_to_remove = list(chain.from_iterable([sorted(fpath.glob(f"*{ext}")) for ext in list_extensions]))
-    for f in files_to_remove:
-        os.remove(str(f))
 
 def create_gif_from_downloaded_recon(fpath_dicoms, qc_im_path, filename_output):
 
@@ -183,6 +179,76 @@ def create_gif_from_downloaded_recon(fpath_dicoms, qc_im_path, filename_output):
 
     return True, qc_im_full_filename
 
+def remove_files_from_path(fpath, list_extensions):
+    files_to_remove = list(chain.from_iterable([sorted(fpath.glob(f"*{ext}")) for ext in list_extensions]))
+    for f in files_to_remove:
+        os.remove(str(f))
+
+def share_list_of_scans(xnat_server, list_xnat_dicts):
+
+    assert xnat_open.exists(), f"The project {key_open_project} does not exist on the XNAT server."
+
+    xnat_vault = get_xnat_vault_project(xnat_server)
+    xnat_open = get_xnat_open_project(xnat_server)
+
+    #check if all are in 
+    lookup_subject_experiments = create_subject_experiment_lookup(xnat_vault, list_xnat_dicts)
+    print(f"We found {lookup_subject_experiments}")
+
+    for subj in lookup_subject_experiments:
+        share_subjects_and_experiments(xnat_vault, xnat_open, subj, lookup_subject_experiments[subj])
+
+    return True
+
+def create_subject_experiment_lookup(project, list_xnat_dicts):
+    list_subjects = []
+
+    for xd in list_xnat_dicts:
+        sid = xd["subject_id"]
+        list_subjects.append(sid)
+
+        check_xnat_file_existence(project, sid, xd["experiment_id"], xd["scan_id"])
+
+    list_subjects = set(list_subjects)
+
+    lookup_subject_experiments = {}
+
+    for subj in list_subjects:
+        lookup_subject_experiments[subj] = []
+
+    for xd in list_xnat_dicts:
+        lookup_subject_experiments[xd["subject_id"]].append(xd["experiment_id"])
+
+    for subj in lookup_subject_experiments:
+        lookup_subject_experiments[subj] = set(lookup_subject_experiments[subj])
+
+
+    return lookup_subject_experiments
+
+def share_subjects_and_experiments(src_project, dst_project, subject_id, list_experiment_ids, primary=True):
+
+    if not src_project.exists():
+        raise NameError(f'Project {src_project} not available on server.')
+
+    if not dst_project.exists():
+        raise NameError(f'Project {dst_project} not available on server.')
+
+    name_xnat_dst_project = dst_project.aliases()['ID'] 
+
+
+    xnat_subject = src_project.subject(subject_id)
+
+    dst_subject = dst_project.subject(subject_id)
+    if not dst_subject.exists():
+        xnat_subject.share(name_xnat_dst_project, primary=primary)
+
+        for eid in list_experiment_ids:
+            cexp = xnat_subject.experiment(eid)
+            cexp.share(name_xnat_dst_project, primary=primary)
+    else:
+        current_app.logger.warning(f"The destination project already contains a subject with the id {subject_id}. Skipping the sharing to destination project.")
+
+    return True
 
 def check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id):
 
