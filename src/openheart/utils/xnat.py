@@ -186,17 +186,15 @@ def remove_files_from_path(fpath, list_extensions):
 
 def share_list_of_scans(xnat_server, list_xnat_dicts):
 
-    assert xnat_open.exists(), f"The project {key_open_project} does not exist on the XNAT server."
-
+    name_xnat_dst_project = current_app.config['XNAT_PROJECT_ID_OPEN']
     xnat_vault = get_xnat_vault_project(xnat_server)
     xnat_open = get_xnat_open_project(xnat_server)
 
     #check if all are in 
     lookup_subject_experiments = create_subject_experiment_lookup(xnat_vault, list_xnat_dicts)
-    print(f"We found {lookup_subject_experiments}")
 
     for subj in lookup_subject_experiments:
-        share_subjects_and_experiments(xnat_vault, xnat_open, subj, lookup_subject_experiments[subj])
+        share_subjects_and_experiments(xnat_vault, xnat_open, name_xnat_dst_project, subj, lookup_subject_experiments[subj])
 
     return True
 
@@ -225,7 +223,7 @@ def create_subject_experiment_lookup(project, list_xnat_dicts):
 
     return lookup_subject_experiments
 
-def share_subjects_and_experiments(src_project, dst_project, subject_id, list_experiment_ids, primary=True):
+def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_project, subject_id, list_experiment_ids, primary=True):
 
     if not src_project.exists():
         raise NameError(f'Project {src_project} not available on server.')
@@ -233,8 +231,7 @@ def share_subjects_and_experiments(src_project, dst_project, subject_id, list_ex
     if not dst_project.exists():
         raise NameError(f'Project {dst_project} not available on server.')
 
-    name_xnat_dst_project = dst_project.aliases()['ID'] 
-
+    current_app.logger.info(f"Trying to share into project {name_xnat_dst_project}")
 
     xnat_subject = src_project.subject(subject_id)
 

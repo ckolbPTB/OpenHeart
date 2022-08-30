@@ -32,7 +32,7 @@ def delete_subjects_from_vault(xnat_server, app, xnat_dicts):
 
 def create_mock_xnat_scans_dict():
 
-    subj_ids = [0,1,2]
+    subj_ids = [0,1]
     num_exps = 3
     scan_ids = [0,1,2]
     exp_date = "1900.01.01"
