@@ -147,7 +147,10 @@ def check_images():
     for f in files:
         all_recons_performed *= f.reconstructed
 
-    return render_template('upload/check_images.html', files=files, reload=(all_recons_performed==False))
+    subject_file_lut = utils.create_subject_file_lookup(files)
+
+    current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
+    return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()), files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
 
 
 
@@ -164,20 +167,21 @@ def submit():
 
             files_rejected = []
             for f in list_files:
-                if 'check'+str(f.id) not in request.form:
+                if 'check_'+str(f.subject) not in request.form:
                     files_rejected.append(f)
 
-                xnat.delete_scans_from_vault(files_rejected, 
-                                             current_app.config['XNAT_PROJECT_ID_VAULT'])
-                for f in files_rejected:
-                    db.delete(f)
-            db.session().commit()
+            xnat.delete_scans_from_vault(files_rejected,
+                                            current_app.config['XNAT_PROJECT_ID_VAULT'])
+            for f in files_rejected:
+                db.session.delete(f)
+
+            db.session.commit()
 
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
                                             transmitted=True, reconstructed=True, submitted=False).all()
             files_accepted = []
             for f in list_files:
-                if 'check'+str(f.id) in request.form:
+                if 'check_'+str(f.subject) in request.form:
                     files_accepted.append(f)
 
             xnat.commit_subjects_to_open(files_accepted)
@@ -185,6 +189,6 @@ def submit():
             for f in files_accepted:
                 f.submitted = True
 
-            db.session().commit()
+            db.session.commit()
 
         return render_template('home/thank_you.html', submitted_files=list_files)

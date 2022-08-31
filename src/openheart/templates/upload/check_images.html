@@ -1,38 +1,51 @@
 <div class="container">
     <div class="row mt-5 " title="reload" id={{reload}}>
     </div>
-    {% for f in files %}
-    {% set subject = f.subject %}
+    {% for sub in subjects %}
     {% if loop.index0 % 4 == 0 %}
         <div class="row">
     {% endif %}
             <div class="col-3">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">{{subject}}</h5>
+                        <h5 class="card-title">{{sub}}</h5>
                         {% if not reload %}
-                            <div id=carousel_check{{f.id}} class="carousel carousel slide" data-bs-ride="carousel">
+                            <div id=carousel_check_{{sub}} class="carousel carousel slide" data-bs-ride="carousel">
                                 <div class="carousel-indicators">
-                                    <button type="button" data-bs-target=#carousel_check{{f.id}} data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                                    {% for j in range(0, files_for_subject[sub]|length) %}
+                                        {% if j == 0 %}
+                                            <button type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                                        {% else %}
+                                            <button type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide-to={{j}} aria-label="Slide "{{j}}></button>
+                                        {% endif %}
+                                    {% endfor %}
                                 </div>
                                 <div class="carousel-inner">
-                                    {% set scan = f.xnat_scan_id %}
-                                        <div class="carousel-item active" data-bs-interval="10000">
-                                            <img src="/static/animations/animation_file_{{f.id}}.gif" class="d-block w-100" alt={{scan}}>
-                                            <div class="carousel-caption d-none d-md-block">
-                                                <p style="color:white;font-size:8px;background-color:black;">{{scan}}</p>
+                                    {%for f in files_for_subject[sub]%}
+                                        {% set file_id = f.id %}
+                                        {% set scan = f.xnat_scan_id %}
+                                        {% if loop.index0 == 0 %}
+                                            <div class="carousel-item active" data-bs-interval="10000">
+                                        {% else %}
+                                            <div class="carousel-item" data-bs-interval="10000">
+                                        {% endif %}
+                                                <img src="/static/animations/animation_file_{{file_id}}.gif" class="d-block w-100" alt={{scan}}>
+                                                <div class="carousel-caption d-none d-md-block">
+                                                    <p style="color:white;font-size:8px;background-color:black;">{{scan}}</p>
+                                                </div>
                                             </div>
-                                        </div>
+                                    {% endfor %}
                                 </div>
-                                <button class="carousel-control-prev" type="button" data-bs-target=#carousel_check{{f.id}} data-bs-slide="prev">
+                                <button class="carousel-control-prev" type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide="prev">
                                     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                     <span class="visually-hidden">Previous</span>
                                 </button>
-                                <button class="carousel-control-next" type="button" data-bs-target=#carousel_check{{f.id}} data-bs-slide="next">
+                                <button class="carousel-control-next" type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide="next">
                                     <span class="carousel-control-next-icon" aria-hidden="true"></span>
                                     <span class="visually-hidden">Next</span>
                                 </button>
                             </div>
+
                         {% else %}
                             {%if reload%}
                                 <div class="row mt-4">
@@ -62,7 +75,7 @@
                         <p class="card-text">
                         {%if reload == 0%}
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name=check{{f.id}} value="" id="flexCheckDefault">
+                                <input class="form-check-input" type="checkbox" name=check_{{sub}} value="" id="flexCheckDefault">
                                 <label class="form-check-label" for="flexCheckDefault">
                                     Submit
                                 </label>
