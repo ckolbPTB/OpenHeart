@@ -116,9 +116,7 @@ def check():
         list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
                                           transmitted=False).all()
 
-        success = xnat.upload_raw_mr(list_files,
-                                    current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'],
-                                    current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'])
+        success = xnat.upload_raw_mr(list_files, current_app.config['XNAT_PROJECT_ID_VAULT'])
         current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
 
         if success:
@@ -140,7 +138,7 @@ def check():
 def check_images():
 
     files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                        transmitted=True, submitted=False).all()
+                                 transmitted=True, submitted=False).all()
 
     files = xnat.download_dcm_images(files)
     db.session.commit()
@@ -170,8 +168,7 @@ def submit():
                     files_rejected.append(f)
 
                 xnat.delete_scans_from_vault(files_rejected, 
-                                            current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], 
-                                            current_app.config['XNAT_ADMIN_PW'], current_app.config['XNAT_PROJECT_ID_VAULT'])
+                                             current_app.config['XNAT_PROJECT_ID_VAULT'])
                 for f in files_rejected:
                     db.delete(f)
             db.session().commit()
@@ -189,13 +186,5 @@ def submit():
                 f.submitted = True
 
             db.session().commit()
-
-            list_rejected_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                                       transmitted=True, submitted=False).all()
-
-            list_rejected_subjects = xnat.get_unique_xnat_subject_id(list_rejected_files)
-            xnat.delete_subjects_from_project(list_rejected_subjects, 
-                                              current_app.config['XNAT_SERVER'], current_app.config['XNAT_ADMIN_USER'], current_app.config['XNAT_ADMIN_PW'],
-                                              current_app.config['XNAT_PROJECT_ID_VAULT'])
 
         return render_template('home/thank_you.html', submitted_files=list_files)
