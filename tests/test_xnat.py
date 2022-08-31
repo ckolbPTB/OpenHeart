@@ -34,7 +34,7 @@ def create_mock_xnat_scans_dict():
 
     subj_ids = [0,1]
     num_exps = 3
-    scan_ids = [0,1,2]
+    scan_ids = [0,1]
     exp_date = "1900.01.01"
 
     xnat_files = []
@@ -102,7 +102,7 @@ def test_create_xnat_scan(app):
 def test_upload_rawdata_file_to_scan(app):
 
     xnat_files = create_mock_xnat_scans_dict()
-    xnat_files = xnat_files[:2]
+
     with app.app_context():
         xnat_server = xnat.get_xnat_connection()
         success = True
@@ -178,7 +178,7 @@ def test_create_gif_from_downloaded_recon(app):
         for f in xnat_files:
             assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
             assert upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
-            assert xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, filepath_test_output), f"Downloading the reconstructio of {f} failed"
+            assert xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, filepath_test_output), f"Downloading the reconstruction of {f} failed"
 
             fname_gif = f'animation_sub_{f["subject_id"]}_exp_{f["experiment_id"]}_scan_{f["scan_id"]}'
 

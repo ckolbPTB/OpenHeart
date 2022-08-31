@@ -30,7 +30,7 @@ def get_xnat_vault_project(xnat_server):
 def get_xnat_open_project(xnat_server):
     return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_OPEN')
 
-def upload_raw_mr(list_files, server_address, username, pw, project_name):
+def upload_raw_mr(list_files, project_name):
 
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
 
@@ -44,9 +44,9 @@ def upload_raw_mr(list_files, server_address, username, pw, project_name):
         raise NameError(f'Project {project_name} not available on server.')
 
     for idx, f in enumerate(list_files):
-        time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
+        experiment_id = utils.create_md5_from_string(f.subject_unique)
+        experiment_id = f"Exp-{experiment_id[:8]}"
 
-        experiment_id = f"Exp-{time_id}"
         scan_id = f'Scan_{idx}'
 
         f.xnat_subject_id = f.subject_unique
@@ -66,7 +66,7 @@ def upload_raw_mr(list_files, server_address, username, pw, project_name):
     current_app.logger.info(f"Finished uploading of of data to xnat. Disconnecting...")
     xnat_server.disconnect()
 
-    return list_files
+    return True
 
 def get_xnat_hdr_from_h5_file(filename_h5):
     dset = ismrmrd.Dataset(filename_h5, 'dataset', create_if_needed=False)
@@ -104,6 +104,7 @@ def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file):
         raise NameError(f"The scan {scan_id} already exists for subject {subject_id} and experiment {experiment_id}")
     else:
         scan.create(**scan_hdr)
+        current_app.logger.info(f"We created the subject {subject_id} / {experiment_id} / {scan_id}")
 
     return True
 
@@ -117,6 +118,7 @@ def upload_rawdata_file_to_scan(xnat_sever, name_project, xnat_file_dict, list_f
     __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
 
     scan_resource = scan.resource('MR_RAW')
+    current_app.logger.info(f"Started upload of {list_filenames_rawdata} to Subj {subject_id}/Exp {experiment_id}/Scan {scan_id}")
     scan_resource.put(list_filenames_rawdata, format='HDF5', label='MR_RAW', content='RAW', **{'xsi:type': 'xnat:mrScanData'})
 
     return True, scan
@@ -127,6 +129,7 @@ def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_outp
     fpath_output = Path(fpath_output)
 
     xnat_project = get_xnat_project(xnat_server, name_project)
+
     subject_id = xnat_file_dict["subject_id"]
     experiment_id = xnat_file_dict["experiment_id"]
     scan_id = xnat_file_dict["scan_id"]
@@ -140,7 +143,7 @@ def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_outp
         with ZipFile(fname_dcm_zip, 'r') as zip:
             zip.extractall(str(fpath_output))
 
-        remove_files_from_path(fpath_output, {".zip"})
+        delete_files_from_path(fpath_output, {".zip"})
 
         return True
     else:
@@ -150,12 +153,13 @@ def create_gif_from_downloaded_recon(fpath_dicoms, qc_im_path, filename_output):
 
     # Create gif
     qc_im_full_filename = utils.create_qc_gif(str(fpath_dicoms), str(qc_im_path), str(filename_output))
+
     current_app.logger.info(f'QC image {qc_im_full_filename} created')
-    remove_files_from_path(Path(fpath_dicoms), {".dcm"})
+    delete_files_from_path(Path(fpath_dicoms), {".dcm"})
 
     return True, qc_im_full_filename
 
-def remove_files_from_path(fpath, list_extensions):
+def delete_files_from_path(fpath, list_extensions):
     files_to_remove = list(chain.from_iterable([sorted(fpath.glob(f"*{ext}")) for ext in list_extensions]))
     for f in files_to_remove:
         os.remove(str(f))
@@ -175,6 +179,7 @@ def share_list_of_scans(xnat_server, list_xnat_dicts):
     return True
 
 def create_subject_experiment_lookup(project, list_xnat_dicts):
+
     list_subjects = []
 
     for xd in list_xnat_dicts:
@@ -239,29 +244,10 @@ def check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id):
 
     return xnat_subject, experiment, scan
 
-def get_unique_attribute(list_of_objects, attribute):
-    return set([getattr(obj,attribute) for obj in list_of_objects])
-
-def get_subject_uniques(list_files):
-    return get_unique_attribute(list_files, 'subject_unique')
-
-def get_unique_xnat_subject_id(list_files):
-    return get_unique_attribute(list_files, 'xnat_subject_id')
-
-def get_unique_xnat_exp_id(list_files, subj_id=None):
-    if subj_id is None:
-        return get_unique_attribute(list_files, 'xnat_experiment_id')
-    else:
-        list_files_of_subj = [f for f in list_files if f.xnat_subject_id == subj_id]
-        return get_unique_attribute(list_files_of_subj, 'xnat_experiment_id')
-
-
-
 def download_dcm_images(file_list):
 
     # Connect to server
     xnat_server = get_xnat_connection()
-
     list_xnat_dicts = get_xnat_dicts_from_file_list(file_list)
 
     for xnd, f in zip(list_xnat_dicts, file_list):
@@ -273,11 +259,16 @@ def download_dcm_images(file_list):
         tmp_path_file.mkdir(parents=True, exist_ok=True)
 
         download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', xnd, tmp_path_file)
+
         output_path = "/app/src/openheart/static/animations/"
         filename_output = f"animation_file_{f.id}"
 
-        create_gif_from_downloaded_recon(tmp_path_file,output_path,filename_output)
-        f.reconstructed=True
+        # it may take some time to unzip the files s.t. this funciton is called before 
+        if len(sorted(tmp_path_file.glob("*.dcm"))) > 0:
+            create_gif_from_downloaded_recon(tmp_path_file, output_path, filename_output)
+            f.reconstructed=True
+        else:
+            continue
 
     xnat_server.disconnect()
     return file_list
@@ -293,35 +284,28 @@ def check_if_scan_was_reconstructed(scan):
 def get_xnat_dicts_from_file_list(list_files):
     return [{"subject_id":f.xnat_subject_id,"experiment_id":f.xnat_experiment_id,"scan_id":f.xnat_scan_id} for f in list_files]
 
-
-def commit_subjects_to_open(list_files_to_commit):
-
-    xnat_server = get_xnat_connection()
-    list_xnat_dicts = get_xnat_dicts_from_file_list(list_files_to_commit)
-    success = share_list_of_scans(xnat_server, list_xnat_dicts)
-    xnat_server.disconnect()
-
-    return success
-
-def get_list_subjects_and_experiments(list_files_to_commit, server_address, username, pw, project_name):
-    xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
-    xnat_project = xnat_server.select.project(project_name)
-    if not xnat_project.exists():
-        xnat_server.disconnect()
-        raise NameError(f'Project {project_name} not available on server.')
-
-
-def delete_scans_from_vault(list_files, server_address, username, pw, project_name):
+def delete_scans_from_vault(list_files, project_name):
 
     # Connect to server
-    xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
+    xnat_server = get_xnat_connection()
 
     for f in list_files:
         __, __, __, scan = verify_file_existence(xnat_server, f, project_name)
         scan.delete()
 
     xnat_server.disconnect()
+
     return(True)
+
+def commit_subjects_to_open(list_files_to_commit):
+
+    xnat_server = get_xnat_connection()
+    list_xnat_dicts = get_xnat_dicts_from_file_list(list_files_to_commit)
+    success = share_list_of_scans(xnat_server, list_xnat_dicts)
+
+    xnat_server.disconnect()
+
+    return success
 
 def delete_subjects_from_project(list_xnat_subject_id, server_address, username, pw, project_name):
 
@@ -348,11 +332,11 @@ def delete_subjects_from_project(list_xnat_subject_id, server_address, username,
 
 def delete_from_vault(file, server_address, username, pw, project_name):
     # Connect to server
-    xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
+    xnat_server = get_xnat_connection()
 
     # Verify project exists
     try:
-        __, xnat_subject, experiment, scan = verify_file_existence(xnat_server, file, project_name)
+        __, xnat_subject, __, __ = verify_file_existence(xnat_server, file, project_name)
         # Delete subject and experiment
         xnat_subject.delete()
     except NameError:
