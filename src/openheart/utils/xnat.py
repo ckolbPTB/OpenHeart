@@ -261,6 +261,9 @@ def download_dcm_images(file_list):
         download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', xnd, tmp_path_file)
 
         output_path = "/app/src/openheart/static/animations/"
+
+        Path(output_path).mkdir(parents=True, exist_ok=True)
+
         filename_output = f"animation_file_{f.id}"
 
         # it may take some time to unzip the files s.t. this funciton is called before 
