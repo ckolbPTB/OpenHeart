@@ -62,6 +62,7 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
 
     # Number of images
     num_files = len(dcm_files)
+    current_app.logger.info(f"Currently we found {num_files} dicoms.")
 
     # Get header information for sorting
     sort_key_words = ['SliceLocation', 'EchoTime']
@@ -72,8 +73,6 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
             if sort_key_words[jnd] in ds:
                 sort_idx[jnd, ind] = float(ds.data_element(sort_key_words[0]).value)
     slice_idx = np.lexsort(sort_idx)
-
-
 
     # ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRBigEndian
     # Read data
@@ -101,7 +100,6 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
 
     return(qc_im_full_filename)
 
-
 def save_gif(im, psave, fsave, cmap='gray', min_max_val=[], total_dur=2):
 
     # Translate image from grayscale to rgb
@@ -125,7 +123,10 @@ def save_gif(im, psave, fsave, cmap='gray', min_max_val=[], total_dur=2):
     imageio.mimsave(psave + fsave + '.gif', anim_im, duration=dur)
     return(psave + fsave + '.gif')
 
-def md5(fname):
+def create_md5_from_string(some_string):
+    return hashlib.md5(some_string.encode('utf-8')).hexdigest()
+
+def create_md5_from_file(fname):
     hash_md5 = hashlib.md5()
     with open(fname, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -153,7 +154,7 @@ def convert_dat_file(filename, measurement_number=1):
 
 def rename_h5_file(fname_out):
 
-    md5_hash = md5(str(fname_out))
+    md5_hash = create_md5_from_file(str(fname_out))
     cfile_name = (fname_out.parent / md5_hash).with_suffix(".h5")
     try:
         current_app.logger.info(f"Trying to rename {fname_out} into {cfile_name}.")
@@ -179,3 +180,16 @@ def clean_up_user_files():
         db.session.commit()
 
     return(True)
+
+def create_subject_file_lookup(list_files):
+
+    list_subjects = set([f.subject for f in list_files])
+
+    sub_id_lut = {}
+    for sub in list_subjects:
+        sub_id_lut[sub] = []
+
+    for f in list_files:
+        sub_id_lut[f.subject].append(f)
+
+    return sub_id_lut
