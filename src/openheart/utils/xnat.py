@@ -43,7 +43,19 @@ def get_xnat_vault_project(xnat_server):
 def get_xnat_open_project(xnat_server):
     return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_OPEN')
 
-def upload_raw_mr(list_files: list, project_name):
+def upload_raw_mr_to_vault(list_files:list):
+
+    return upload_raw_mr(list_files, current_app.config['XNAT_PROJECT_ID_VAULT'])
+
+def upload_raw_mr(list_files: list, project_name: str):
+    '''
+    Function to upload mr rawdata files to the XNAT server and add them to project project_name
+    input:
+        list_files: list filenames for ismrmrd.h5 to be uploaded
+        project_name: key to the app.config dict containing the project ID
+    output:
+        True
+    '''
 
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
 

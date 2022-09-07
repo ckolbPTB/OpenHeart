@@ -116,7 +116,7 @@ def check():
         list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
                                           transmitted=False).all()
 
-        success = xnat.upload_raw_mr(list_files, current_app.config['XNAT_PROJECT_ID_VAULT'])
+        success = xnat.upload_raw_mr_to_vault(list_files)
         current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
 
         if success:
