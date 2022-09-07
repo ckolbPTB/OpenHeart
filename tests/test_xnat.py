@@ -180,12 +180,11 @@ def test_create_gif_from_downloaded_recon(app):
             assert upload_DICOM_files_to_scan(xnat_project, f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
             assert xnat.download_dcm_from_scan(xnat_project, f, filepath_test_output), f"Downloading the reconstruction of {f} failed"
 
-            fname_gif = f'animation_sub_{f["subject_id"]}_exp_{f["experiment_id"]}_scan_{f["scan_id"]}'
+            fname_gif = f'animation_sub_{f["subject_id"]}_exp_{f["experiment_id"]}_scan_{f["scan_id"]}.gif'
+            filepath_output = filepath_test_output / fname_gif
 
-            gif_success, fpath_gif = xnat.create_gif_from_downloaded_recon(filepath_test_output, filepath_test_output, '/' + fname_gif)
-            assert gif_success, f"The construction of the gif failed."
-            fpath_gif = Path(fpath_gif)
-            assert fpath_gif.exists(), f"The gif does not exist at the filepath that create_gif_from_downloaded_recon was  failed."
+            assert xnat.create_gif_from_downloaded_recon(filepath_test_output, filepath_output), f"The construction of the gif failed."
+            assert filepath_output.exists(), f"The gif does not exist at the filepath that create_gif_from_downloaded_recon was  failed."
 
         delete_subjects_from_vault(xnat_server, app, xnat_files)
         xnat_server.disconnect()

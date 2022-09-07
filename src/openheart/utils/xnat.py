@@ -188,15 +188,15 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
     else:
         return False
 
-def create_gif_from_downloaded_recon(fpath_dicoms, qc_im_path, filename_output):
+def create_gif_from_downloaded_recon(fpath_dicoms:Path, filename_output_with_ext:Path):
 
     # Create gif
-    qc_im_full_filename = utils.create_qc_gif(str(fpath_dicoms), str(qc_im_path), str(filename_output))
+    utils.create_qc_gif(fpath_dicoms, filename_output_with_ext)
 
-    current_app.logger.info(f'QC image {qc_im_full_filename} created')
+    current_app.logger.info(f'Quality control image {filename_output_with_ext} created')
     delete_files_from_path(Path(fpath_dicoms), {".dcm"})
 
-    return True, qc_im_full_filename
+    return True
 
 def delete_files_from_path(fpath, list_extensions):
     files_to_remove = list(chain.from_iterable([sorted(fpath.glob(f"*{ext}")) for ext in list_extensions]))
@@ -279,33 +279,35 @@ def download_dcm_images(file_list):
     # Connect to server
     xnat_server = get_xnat_connection()
     list_xnat_dicts = get_xnat_dicts_from_file_list(file_list)
-    xnat_project = get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
-
+    xnat_project =get_xnat_vault_project(xnat_server)
     for xnd, f in zip(list_xnat_dicts, file_list):
 
-        if f.reconstructed:
-            continue
-
-        tmp_path_file = Path(current_app.config['TEMP_FOLDER']) / f"temp_file_{f.id}"
-        tmp_path_file.mkdir(parents=True, exist_ok=True)
-
-        download_dcm_from_scan(xnat_project, xnd, tmp_path_file)
-
-        output_path = "/app/src/openheart/static/animations/"
-
-        Path(output_path).mkdir(parents=True, exist_ok=True)
-
-        filename_output = f"animation_file_{f.id}"
-
-        # it may take some time to unzip the files s.t. this funciton is called before 
-        if len(sorted(tmp_path_file.glob("*.dcm"))) > 0:
-            create_gif_from_downloaded_recon(tmp_path_file, output_path, filename_output)
-            f.reconstructed=True
-        else:
-            continue
+        create_gif_for_file(xnat_project, xnd, f)
 
     xnat_server.disconnect()
     return file_list
+
+def create_gif_for_file(xnat_project, xnat_id_dict, f):
+
+    if f.reconstructed:
+        return True
+
+    tmp_path_file = Path(current_app.config['TEMP_FOLDER']) / f"temp_file_{f.id}"
+    tmp_path_file.mkdir(parents=True, exist_ok=True)
+
+    download_dcm_from_scan(xnat_project, xnat_id_dict, tmp_path_file)
+
+    filepath_output = Path("/app/src/openheart/static/animations/")
+    filepath_output.mkdir(parents=True, exist_ok=True)
+    filename_output = filepath_output / f"animation_file_{f.id}.gif"
+
+    # it may take some time to unzip the files s.t. this funciton is called before 
+    if len(sorted(tmp_path_file.glob("*.dcm"))) > 0:
+        create_gif_from_downloaded_recon(tmp_path_file, filepath_output)
+        f.reconstructed=True
+        return True
+    else:
+        return False
 
 def check_if_scan_was_reconstructed(scan):
 

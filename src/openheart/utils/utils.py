@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 import pydicom
 import imageio
@@ -55,20 +54,18 @@ def min01perc(dat):
     return (dat[int(np.round(dat.shape[0] * 0.01))])
 
 
-def create_qc_gif(dicom_path, qc_im_path, upload_file):
+def preprocess_dicoms_for_gif(dicom_path: Path):
 
-    # Get all files in directory but ignore files starting with .
-    dcm_files = sorted([os.path.basename(x) for x in glob.glob(dicom_path + '/*.dcm')])
+    dcm_files = sorted(dicom_path.glob("*.dcm"))
 
-    # Number of images
     num_files = len(dcm_files)
     current_app.logger.info(f"Currently we found {num_files} dicoms.")
 
     # Get header information for sorting
     sort_key_words = ['SliceLocation', 'EchoTime']
     sort_idx = np.zeros((len(sort_key_words), num_files), dtype=np.float32)
-    for ind in range(num_files):
-        ds = pydicom.dcmread(dicom_path + '/' + dcm_files[ind])
+    for ind, f in enumerate(dcm_files):
+        ds = pydicom.dcmread(str(f))
         for jnd in range(len(sort_key_words)):
             if sort_key_words[jnd] in ds:
                 sort_idx[jnd, ind] = float(ds.data_element(sort_key_words[0]).value)
@@ -76,7 +73,7 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
 
     # ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRBigEndian
     # Read data
-    ds = [pydicom.dcmread(dicom_path + '/' + dcm_files[i]) for i in range(num_files)]
+    ds = [pydicom.dcmread(str(f)) for f in dcm_files]
 
     print('FIX FOR BROKEN DICOM!!!!!')
     for d in ds:
@@ -94,13 +91,18 @@ def create_qc_gif(dicom_path, qc_im_path, upload_file):
     ds = np.moveaxis(ds, 0, -1)
     ds = np.reshape(ds, ds.shape[:2] + (-1,))
 
+    return ds, num_files
+
+def create_qc_gif(dicom_path: Path, filename_output_with_ext:Path):
+
+    ds, num_files = preprocess_dicoms_for_gif(dicom_path)
     fps = 30
     gif_dur_seconds = num_files / fps
-    qc_im_full_filename = save_gif(ds, qc_im_path, upload_file, cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
+    save_gif(ds, filename_output_with_ext, cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
 
-    return(qc_im_full_filename)
+    return None
 
-def save_gif(im, psave, fsave, cmap='gray', min_max_val=[], total_dur=2):
+def save_gif(im, fpath_output_with_ext:Path, cmap='gray', min_max_val=[], total_dur=2):
 
     # Translate image from grayscale to rgb
     cmap = plt.get_cmap(cmap)
@@ -120,8 +122,9 @@ def save_gif(im, psave, fsave, cmap='gray', min_max_val=[], total_dur=2):
     for tnd in range(im_rgb.shape[2]):
         anim_im.append(im_rgb[:, :, tnd, :])
         dur.append(total_dur/im_rgb.shape[2])
-    imageio.mimsave(psave + fsave + '.gif', anim_im, duration=dur)
-    return(psave + fsave + '.gif')
+    imageio.mimsave(str(fpath_output_with_ext) , anim_im, duration=dur)
+
+    return None
 
 def create_md5_from_string(some_string):
     return hashlib.md5(some_string.encode('utf-8')).hexdigest()
