@@ -10,7 +10,13 @@ import sys
 
 from itertools import chain
 
-def get_xnat_connection():
+def get_xnat_connection() -> pyxnat.Interface:
+    '''
+    Establish a connetion to the XNAT server at current_app.config['XNAT_SERVER'] using the
+    username current_app.config['XNAT_ADMIN_USER'] and the password current_app.config['XNAT_ADMIN_PW']
+        input: None
+        output: pyxnat.Interface object
+    '''
     xnat_server = pyxnat.Interface(server=current_app.config['XNAT_SERVER'], user=current_app.config['XNAT_ADMIN_USER'], password=current_app.config['XNAT_ADMIN_PW'])
     return xnat_server
 
@@ -37,7 +43,7 @@ def get_xnat_vault_project(xnat_server):
 def get_xnat_open_project(xnat_server):
     return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_OPEN')
 
-def upload_raw_mr(list_files, project_name):
+def upload_raw_mr(list_files: list, project_name):
 
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
 
