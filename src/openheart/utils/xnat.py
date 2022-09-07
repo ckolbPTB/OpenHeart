@@ -33,7 +33,6 @@ def get_xnat_project(xnat_server: pyxnat.Interface, name_project: str):
     xnat_project = xnat_server.select.project(current_app.config[name_project])
 
     if not xnat_project.exists():
-        xnat_server.disconnect()
         raise NameError(f'Project {current_app.config[name_project]} not available on server.')
 
     return xnat_project
@@ -172,11 +171,9 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
     return True, scan
 
 
-def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_output):
+def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
     fpath_output = Path(fpath_output)
-
-    xnat_project = get_xnat_project(xnat_server, name_project)
 
     subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
@@ -295,6 +292,7 @@ def download_dcm_images(file_list):
     # Connect to server
     xnat_server = get_xnat_connection()
     list_xnat_dicts = get_xnat_dicts_from_file_list(file_list)
+    xnat_project = get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
 
     for xnd, f in zip(list_xnat_dicts, file_list):
 
@@ -304,7 +302,7 @@ def download_dcm_images(file_list):
         tmp_path_file = Path(current_app.config['TEMP_FOLDER']) / f"temp_file_{f.id}"
         tmp_path_file.mkdir(parents=True, exist_ok=True)
 
-        download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', xnd, tmp_path_file)
+        download_dcm_from_scan(xnat_project, xnd, tmp_path_file)
 
         output_path = "/app/src/openheart/static/animations/"
 
@@ -332,14 +330,6 @@ def check_if_scan_was_reconstructed(scan):
 
 def get_xnat_dicts_from_file_list(list_files):
     return [{"subject_id":f.xnat_subject_id,"experiment_id":f.xnat_experiment_id,"scan_id":f.xnat_scan_id} for f in list_files]
-
-def get_xnat_project(xnat_server: pyxnat.Interface, project_name: str):
-
-    xnat_project = xnat_server.select.project(project_name)
-    if not xnat_project.exists():
-        raise NameError(f'Project {project_name} not available on server.')
-
-    return xnat_project
 
 def get_xnat_subject(xnat_project, xnat_subject_id):
 

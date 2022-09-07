@@ -3,7 +3,7 @@ import pytest
 import tempfile
 from pathlib import Path
 from uuid import uuid4
-from conftest import app, test_files
+# from conftest import app, test_files
 from openheart.utils import xnat
 
 
@@ -48,9 +48,8 @@ def create_mock_xnat_scans_dict():
     return xnat_files
 
 
-def upload_DICOM_files_to_scan(xnat_sever, name_project, xnat_file_dict, list_filenames_dicoms):
+def upload_DICOM_files_to_scan(xnat_project, xnat_file_dict, list_filenames_dicoms):
 
-    xnat_project = xnat.get_xnat_project(xnat_sever, name_project)
     subject_id = xnat_file_dict["subject_id"]
     experiment_id = xnat_file_dict["experiment_id"]
     scan_id = xnat_file_dict["scan_id"]
@@ -87,8 +86,9 @@ def test_create_xnat_scan(app):
         xnat_server = xnat.get_xnat_connection()
         success = True
         try:
+            xnat_project = xnat.get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
             for f in xnat_dicts:
-                success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f)
+                success *= xnat.create_xnat_scan(xnat_project, mock_xnat_scan_hdr(), f)
         except NameError:
             success *= False
 
@@ -142,16 +142,16 @@ def test_download_dcm_from_scan(app):
     with app.app_context():
         xnat_server = xnat.get_xnat_connection()
         success = True
+        xnat_project = xnat.get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
+        for f in xnat_files:
+            success *= xnat.create_xnat_scan(xnat_project, mock_xnat_scan_hdr(), f)
 
         for f in xnat_files:
-            success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f)
-
-        for f in xnat_files:
-            upload_ok, __ = upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, list_fnames_dicoms)
+            upload_ok, __ = upload_DICOM_files_to_scan(xnat_project, f, list_fnames_dicoms)
             assert upload_ok, "The upload of the dicom files failed"
 
         for f in xnat_files:
-            success *= xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, filepath_test_output)
+            success *= xnat.download_dcm_from_scan(xnat_project, f, filepath_test_output)
 
             num_dicoms_download = sorted(filepath_test_output.glob("*.dcm"))
             assert num_dicoms_upload == num_dicoms_upload, f"For {f} the # dicoms downloaded !=  # uploaded {num_dicoms_download} vs {num_dicoms_upload}"
@@ -162,7 +162,7 @@ def test_download_dcm_from_scan(app):
         xnat_server.disconnect()
 
 def test_create_gif_from_downloaded_recon(app):
-    
+
     filepath_dicoms = Path('/test/input/dicoms')
     filepath_test_output = Path('/test/output')
 
@@ -174,11 +174,11 @@ def test_create_gif_from_downloaded_recon(app):
 
     with app.app_context():
         xnat_server = xnat.get_xnat_connection()
-
+        xnat_project = xnat.get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
         for f in xnat_files:
-            assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
-            assert upload_DICOM_files_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
-            assert xnat.download_dcm_from_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, filepath_test_output), f"Downloading the reconstruction of {f} failed"
+            assert xnat.create_xnat_scan(xnat_project, mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
+            assert upload_DICOM_files_to_scan(xnat_project, f, list_fnames_dicoms)[0], f"Uploading {list_fnames_dicoms} failed."
+            assert xnat.download_dcm_from_scan(xnat_project, f, filepath_test_output), f"Downloading the reconstruction of {f} failed"
 
             fname_gif = f'animation_sub_{f["subject_id"]}_exp_{f["experiment_id"]}_scan_{f["scan_id"]}'
 
