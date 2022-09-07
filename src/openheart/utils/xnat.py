@@ -1,4 +1,6 @@
+from msilib.schema import File
 from pathlib import Path
+from openheart import database
 import pyxnat
 from datetime import datetime
 import os
@@ -64,6 +66,7 @@ def upload_raw_mr(list_files: list, project_name: str):
 
     # Verify project exists
     xnat_project = xnat_server.select.project(project_name)
+
     if not xnat_project.exists():
         xnat_server.disconnect()
         raise NameError(f'Project {project_name} not available on server.')
@@ -372,22 +375,10 @@ def delete_subjects_from_project(list_xnat_subject_id, server_address, username,
 
     return True
 
-def delete_from_vault(file, server_address, username, pw, project_name):
-    # Connect to server
-    xnat_server = get_xnat_connection()
-
-    # Verify project exists
-    try:
-        __, xnat_subject, __, __ = verify_file_existence(xnat_server, file, project_name)
-        # Delete subject and experiment
-        xnat_subject.delete()
-    except NameError:
-        current_app.logger.error(f"The subject/experiment/scan {file.xnat_subject_id}/{file.xnat_experiment_id}/{file.xnat_scan_id} you tried to delete from vault does not exist." \
-                                  "The subject was deleted probaly already as a whole.")
-    xnat_server.disconnect()
-    return(True)
-
-def verify_file_existence(xnat_server, file, project_name):
+def verify_file_existence(xnat_server: pyxnat.Interface, file: database.File, project_name: str):
+    '''
+    
+    '''
 
     # Verify project exists
     xnat_project = xnat_server.select.project(project_name)
