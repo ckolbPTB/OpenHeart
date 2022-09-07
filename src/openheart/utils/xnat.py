@@ -14,8 +14,15 @@ def get_xnat_connection():
     xnat_server = pyxnat.Interface(server=current_app.config['XNAT_SERVER'], user=current_app.config['XNAT_ADMIN_USER'], password=current_app.config['XNAT_ADMIN_PW'])
     return xnat_server
 
-def get_xnat_project(xnat_server, name_project):
-
+def get_xnat_project(xnat_server: pyxnat.Interface, name_project: str):
+    '''
+    Auxiliary function accessing a project on an XNAT server
+        input:
+            xnat_server: a pyxnat.Interface object
+            name_project: a key to the current_app.config dictionary where the name of the project is stored
+        output:
+            xnat_project: pyxnat project with name app.config['name_project']
+    '''
     xnat_project = xnat_server.select.project(current_app.config[name_project])
 
     if not xnat_project.exists():
@@ -68,22 +75,26 @@ def upload_raw_mr(list_files, project_name):
 
     return True
 
-def get_xnat_hdr_from_h5_file(filename_h5):
-    dset = ismrmrd.Dataset(filename_h5, 'dataset', create_if_needed=False)
+def get_xnat_hdr_from_h5_file(filename_with_ext: str):
+    '''
+    Auxiliary function to fill XNAT file header from an ISMRMRD rawdata file
+        input: full filename of ISMRMRD rawdata
+        output: dict containing keys describing an xnat:mrScanData file
+    '''
+    dset = ismrmrd.Dataset(filename_with_ext, 'dataset', create_if_needed=False)
     header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
     xnat_hdr = utils.ismrmrd_2_xnat(header)
     dset.close()
+
     return xnat_hdr
 
-def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file):
+def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file_dict):
 
     xnat_project = get_xnat_project(xnat_sever, name_project)
 
-    subject_id = xnat_file["subject_id"]
-    experiment_id = xnat_file["experiment_id"]
-    scan_id = xnat_file["scan_id"]
+    subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
-    experiment_date = xnat_file.get("experiment_date", "1900.01.01")
+    experiment_date = xnat_file_dict.get("experiment_date", "1900.01.01")
 
     xnat_subject = xnat_project.subject(subject_id)
 
@@ -108,12 +119,24 @@ def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file):
 
     return True
 
-def upload_rawdata_file_to_scan(xnat_sever, name_project, xnat_file_dict, list_filenames_rawdata):
+def get_ids_from_dict(xnat_file_dict: dict):
+    '''
+    Auxiliary function to extract XNAT file IDs from a dictionary
 
-    xnat_project = get_xnat_project(xnat_sever, name_project)
+        input: dictionary containing keys for xnat subject_id, experiment_id and scan_id
+        output: tuple with the values to the above-mentioned keys the dictionary 
+    '''
     subject_id = xnat_file_dict["subject_id"]
     experiment_id = xnat_file_dict["experiment_id"]
     scan_id = xnat_file_dict["scan_id"]
+
+    return subject_id, experiment_id, scan_id
+
+def upload_rawdata_file_to_scan(xnat_sever, name_project, xnat_file_dict, list_filenames_rawdata):
+
+    xnat_project = get_xnat_project(xnat_sever, name_project)
+
+    subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
     __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
 
@@ -130,9 +153,7 @@ def download_dcm_from_scan(xnat_server, name_project, xnat_file_dict, fpath_outp
 
     xnat_project = get_xnat_project(xnat_server, name_project)
 
-    subject_id = xnat_file_dict["subject_id"]
-    experiment_id = xnat_file_dict["experiment_id"]
-    scan_id = xnat_file_dict["scan_id"]
+    subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
     __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
 
