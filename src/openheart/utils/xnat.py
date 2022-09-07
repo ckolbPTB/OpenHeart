@@ -56,20 +56,19 @@ def upload_raw_mr(list_files: list, project_name: str):
         list_files: list filenames for ismrmrd.h5 to be uploaded
         project_name: key to the app.config dict containing the project ID
     output:
-        True
+        Boolean if upload was successful
     '''
-
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
 
     # Connect to server
     xnat_server = get_xnat_connection()
 
-    # Verify project exists
-    xnat_project = xnat_server.select.project(project_name)
-
-    if not xnat_project.exists():
+    try:
+        xnat_project = get_xnat_project(xnat_server, project_name)
+    except NameError as e:
+        current_app.logger.error(f"Accessing the project {xnat_project} failed. \n The error is {e}.")
         xnat_server.disconnect()
-        raise NameError(f'Project {project_name} not available on server.')
+        return False
 
     for idx, f in enumerate(list_files):
         experiment_id = utils.create_md5_from_string(f.subject_unique)
@@ -87,7 +86,7 @@ def upload_raw_mr(list_files: list, project_name: str):
 
         xnat_dict["experiment_date"] = experiment_date
         xnat_hdr = get_xnat_hdr_from_h5_file(f.name_unique)
-        create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', xnat_hdr, xnat_dict)
+        create_xnat_scan(xnat_project, xnat_hdr, xnat_dict)
         upload_rawdata_file_to_scan(xnat_server,'XNAT_PROJECT_ID_VAULT', xnat_dict, [f.name_unique])
         f.transmitted =  True
 
@@ -109,9 +108,7 @@ def get_xnat_hdr_from_h5_file(filename_with_ext: str):
 
     return xnat_hdr
 
-def create_xnat_scan(xnat_sever, name_project, scan_hdr, xnat_file_dict):
-
-    xnat_project = get_xnat_project(xnat_sever, name_project)
+def create_xnat_scan(xnat_project, scan_hdr, xnat_file_dict):
 
     subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
@@ -362,6 +359,13 @@ def get_xnat_scan(xnat_experiment, scan_id):
 
 def get_scan_from_file(xnat_server: pyxnat.Interface, file: database.File, project_name: str):
     '''
+    Getter for a xnat scan object defined by a database.File object
+    input: 
+        xnat_server: pyxnat.Interface object
+        file: database.File object defining an existing scan
+        project_name: name of the project on the xnat server
+    output:
+        xnat scan object
     '''
     project = get_xnat_project(xnat_server, project_name)
     subject = get_xnat_subject(project, file.xnat_subject_id)
@@ -400,23 +404,3 @@ def delete_scans_from_vault(list_files: list):
     xnat_server.disconnect()
 
     return True
-
-
-
-def delete_subjects_from_project(list_xnat_subject_id, server_address, username, pw, project_name):
-
-    xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
-
-    # Verify project exists
-    for xnsid in list_xnat_subject_id:
-        try:
-            project = get_xnat_project(xnat_server, project_name)
-            subject = get_xnat_subject(project, xnsid)
-            subject.delete()
-        except NameError as e:
-            current_app.logger.error(f"Deleting a subject failed. \n The error is: {e}")
-
-    xnat_server.disconnect()
-
-    return True
-
