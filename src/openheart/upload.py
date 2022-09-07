@@ -170,8 +170,7 @@ def submit():
                 if 'check_'+str(f.subject) not in request.form:
                     files_rejected.append(f)
 
-            xnat.delete_scans_from_vault(files_rejected,
-                                            current_app.config['XNAT_PROJECT_ID_VAULT'])
+            xnat.delete_scans_from_vault(files_rejected)
             for f in files_rejected:
                 db.session.delete(f)
 

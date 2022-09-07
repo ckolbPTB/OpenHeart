@@ -329,18 +329,47 @@ def check_if_scan_was_reconstructed(scan):
 def get_xnat_dicts_from_file_list(list_files):
     return [{"subject_id":f.xnat_subject_id,"experiment_id":f.xnat_experiment_id,"scan_id":f.xnat_scan_id} for f in list_files]
 
-def delete_scans_from_vault(list_files, project_name):
+def get_xnat_project(xnat_server: pyxnat.Interface, project_name: str):
 
-    # Connect to server
-    xnat_server = get_xnat_connection()
+    xnat_project = xnat_server.select.project(project_name)
+    if not xnat_project.exists():
+        raise NameError(f'Project {project_name} not available on server.')
 
-    for f in list_files:
-        __, __, __, scan = verify_file_existence(xnat_server, f, project_name)
-        scan.delete()
+    return xnat_project
 
-    xnat_server.disconnect()
+def get_xnat_subject(xnat_project, xnat_subject_id):
 
-    return(True)
+    xnat_subject = xnat_project.subject(xnat_subject_id)
+    if not xnat_subject.exists():
+        raise NameError(f'Subject {xnat_subject_id} does not exist.')
+
+    return xnat_subject
+
+def get_xnat_experiment(xnat_subject, experiment_id):
+
+    xnat_experiment = xnat_subject.experiment(experiment_id)
+    if not xnat_experiment.exists():
+        raise NameError(f'Experiment {experiment_id} does not exist.')
+
+    return xnat_experiment
+
+def get_xnat_scan(xnat_experiment, scan_id):
+    xnat_scan = xnat_experiment.scan(scan_id)
+    if not xnat_scan.exists():
+        raise NameError(f'Scan {xnat_scan} does not exist.')
+
+    return xnat_scan
+
+def get_scan_from_file(xnat_server: pyxnat.Interface, file: database.File, project_name: str):
+    '''
+    '''
+    project = get_xnat_project(xnat_server, project_name)
+    subject = get_xnat_subject(project, file.xnat_subject_id)
+    experiment = get_xnat_experiment(subject, file.xnat_experiment_id)
+    scan = get_xnat_scan(experiment, file.xnat_scan_id)
+
+    return scan
+
 
 def commit_subjects_to_open(list_files_to_commit):
 
@@ -352,56 +381,42 @@ def commit_subjects_to_open(list_files_to_commit):
 
     return success
 
+def delete_scans_from_vault(list_files: list):
+    '''
+    Function deleting files from the XNAT server project defined by app.config['XNAT_PROJECT_ID_VAULT']
+    input: list of database.File objects
+    output: True
+    '''
+    # Connect to server
+    xnat_server = get_xnat_connection()
+
+    for f in list_files:
+        try:
+            scan = get_scan_from_file(xnat_server, f, current_app.config['XNAT_PROJECT_ID_VAULT'])
+            scan.delete()
+        except NameError as e:
+            current_app.logger.error(f"Deleting a scan failed. \n The error is: {e}")
+
+    xnat_server.disconnect()
+
+    return True
+
+
+
 def delete_subjects_from_project(list_xnat_subject_id, server_address, username, pw, project_name):
 
     xnat_server = pyxnat.Interface(server=server_address, user=username, password=pw)
 
     # Verify project exists
     for xnsid in list_xnat_subject_id:
-        xnat_project = xnat_server.select.project(project_name)
-        if not xnat_project.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Project {project_name} not available on server.')
-
-        # Verify that subject and experiment exists
-        xnat_subject = xnat_project.subject(xnsid)
-        if not xnat_subject.exists():
-            xnat_server.disconnect()
-            raise NameError(f'Subject {xnsid} does not exist.')
-
-        xnat_subject.delete()
+        try:
+            project = get_xnat_project(xnat_server, project_name)
+            subject = get_xnat_subject(project, xnsid)
+            subject.delete()
+        except NameError as e:
+            current_app.logger.error(f"Deleting a subject failed. \n The error is: {e}")
 
     xnat_server.disconnect()
 
     return True
 
-def verify_file_existence(xnat_server: pyxnat.Interface, file: database.File, project_name: str):
-    '''
-    
-    '''
-
-    # Verify project exists
-    xnat_project = xnat_server.select.project(project_name)
-    if not xnat_project.exists():
-        xnat_server.disconnect()
-        raise NameError(f'Project {project_name} not available on server.')
-
-    # Verify that subject and experiment exists
-    xnat_subject = xnat_project.subject(file.xnat_subject_id)
-    if not xnat_subject.exists():
-        xnat_server.disconnect()
-        raise NameError(f'Subject {file.xnat_subject_id} does not exist.')
-
-    experiment_id = file.xnat_experiment_id
-    experiment = xnat_subject.experiment(experiment_id)
-    if not experiment.exists():
-        xnat_server.disconnect()
-        raise NameError(f'Experiment {experiment_id} does not exist.')
-
-    scan = experiment.scan(file.xnat_scan_id)
-    if not scan.exists():
-        xnat_server.disconnect()
-        raise NameError(f'Scan {scan} does not exist.')
-
-
-    return xnat_project, xnat_subject, experiment, scan
