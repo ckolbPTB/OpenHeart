@@ -1,4 +1,3 @@
-from msilib.schema import File
 from pathlib import Path
 from openheart import database
 import pyxnat
@@ -49,6 +48,26 @@ def upload_raw_mr_to_vault(list_files:list):
 
     return upload_raw_mr(list_files, current_app.config['XNAT_PROJECT_ID_VAULT'])
 
+def set_xnat_IDs_in_files(list_files: list) -> list:
+    '''
+    Preparing the database.File objects by setting appropriate experiment_id and scan_id
+    input:
+        list of database.File objects
+    output:
+        list of database.File objects
+    '''
+    digits_experiment_id = 8
+    for idx, f in enumerate(list_files):
+        experiment_id = utils.create_md5_from_string(f.subject_unique)
+        experiment_id = f"Exp-{experiment_id[:digits_experiment_id]}"
+        scan_id = f'Scan_{idx}'
+
+        f.xnat_subject_id = f.subject_unique
+        f.xnat_experiment_id = experiment_id
+        f.xnat_scan_id = scan_id
+
+    return list_files
+
 def upload_raw_mr(list_files: list, project_name: str):
     '''
     Function to upload mr rawdata files to the XNAT server and add them to project project_name
@@ -58,9 +77,8 @@ def upload_raw_mr(list_files: list, project_name: str):
     output:
         Boolean if upload was successful
     '''
+    #
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
-
-    # Connect to server
     xnat_server = get_xnat_connection()
 
     try:
@@ -70,16 +88,7 @@ def upload_raw_mr(list_files: list, project_name: str):
         xnat_server.disconnect()
         return False
 
-    for idx, f in enumerate(list_files):
-        experiment_id = utils.create_md5_from_string(f.subject_unique)
-        experiment_id = f"Exp-{experiment_id[:8]}"
-
-        scan_id = f'Scan_{idx}'
-
-        f.xnat_subject_id = f.subject_unique
-        f.xnat_experiment_id = experiment_id
-        f.xnat_scan_id = scan_id
-
+    list_files = set_xnat_IDs_in_files(list_files)
     list_xnat_dicts = get_xnat_dicts_from_file_list(list_files)
 
     for xnat_dict, f in zip(list_xnat_dicts, list_files):
@@ -87,7 +96,7 @@ def upload_raw_mr(list_files: list, project_name: str):
         xnat_dict["experiment_date"] = experiment_date
         xnat_hdr = get_xnat_hdr_from_h5_file(f.name_unique)
         create_xnat_scan(xnat_project, xnat_hdr, xnat_dict)
-        upload_rawdata_file_to_scan(xnat_server,'XNAT_PROJECT_ID_VAULT', xnat_dict, [f.name_unique])
+        upload_rawdata_file_to_scan(xnat_project, xnat_dict, [f.name_unique])
         f.transmitted =  True
 
     current_app.logger.info(f"Finished uploading of of data to xnat. Disconnecting...")
@@ -150,9 +159,7 @@ def get_ids_from_dict(xnat_file_dict: dict):
 
     return subject_id, experiment_id, scan_id
 
-def upload_rawdata_file_to_scan(xnat_sever, name_project, xnat_file_dict, list_filenames_rawdata):
-
-    xnat_project = get_xnat_project(xnat_sever, name_project)
+def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_rawdata):
 
     subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
