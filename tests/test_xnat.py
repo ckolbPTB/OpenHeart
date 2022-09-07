@@ -106,17 +106,17 @@ def test_upload_rawdata_file_to_scan(app):
     with app.app_context():
         xnat_server = xnat.get_xnat_connection()
         success = True
-
+        xnat_project = xnat.get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
         try:
             for f in xnat_files:
-                success *= xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f)
+                success *= xnat.create_xnat_scan(xnat_project, mock_xnat_scan_hdr(), f)
         except NameError:
             success = False
 
         tmp_rawfile = tempfile.NamedTemporaryFile(delete=False)
         try:
             for f in xnat_files:
-                upload_ok, __ = xnat.upload_rawdata_file_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, [tmp_rawfile.name])
+                upload_ok, __ = xnat.upload_rawdata_file_to_scan(xnat_project, f, [tmp_rawfile.name])
                 success *= upload_ok
         except NameError:
             success = False
@@ -195,12 +195,12 @@ def test_share_list_of_scans(app):
 
     with app.app_context():
         xnat_server = xnat.get_xnat_connection()
-
+        xnat_project = xnat.get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_VAULT')
         tmp_rawfile = tempfile.NamedTemporaryFile(delete=False)
 
         for f in xnat_files:
-            assert xnat.create_xnat_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
-            assert xnat.upload_rawdata_file_to_scan(xnat_server, 'XNAT_PROJECT_ID_VAULT', f, [tmp_rawfile.name])[0], f"Uploading of rawdata to XNAT server failed."
+            assert xnat.create_xnat_scan(xnat_project, mock_xnat_scan_hdr(), f), f"Creating of {f} failed on the XNAT server."
+            assert xnat.upload_rawdata_file_to_scan(xnat_project, f, [tmp_rawfile.name])[0], f"Uploading of rawdata to XNAT server failed."
 
         assert xnat.share_list_of_scans(xnat_server, xnat_files)
 
