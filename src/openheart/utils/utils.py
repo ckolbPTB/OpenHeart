@@ -54,7 +54,7 @@ def min01perc(dat):
     return (dat[int(np.round(dat.shape[0] * 0.01))])
 
 
-def preprocess_dicoms_for_gif(dicom_path: Path):
+def read_and_process_dicoms(dicom_path: Path):
 
     dcm_files = sorted(dicom_path.glob("*.dcm"))
 
@@ -95,7 +95,8 @@ def preprocess_dicoms_for_gif(dicom_path: Path):
 
 def create_qc_gif(dicom_path: Path, filename_output_with_ext:Path):
 
-    ds, num_files = preprocess_dicoms_for_gif(dicom_path)
+    ds, num_files = read_and_process_dicoms(dicom_path)
+
     fps = 30
     gif_dur_seconds = num_files / fps
     save_gif(ds, filename_output_with_ext, cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
