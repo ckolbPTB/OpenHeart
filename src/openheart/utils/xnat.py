@@ -7,7 +7,6 @@ import ismrmrd
 from openheart.utils import utils
 from zipfile import ZipFile
 from flask import current_app
-import sys
 
 from itertools import chain
 
@@ -162,8 +161,7 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
 
     subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
 
-    __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
-
+    scan = get_scan_from_project(xnat_project, subject_id, experiment_id, scan_id)
     scan_resource = scan.resource('MR_RAW')
     current_app.logger.info(f"Started upload of {list_filenames_rawdata} to Subj {subject_id}/Exp {experiment_id}/Scan {scan_id}")
     scan_resource.put(list_filenames_rawdata, format='HDF5', label='MR_RAW', content='RAW', **{'xsi:type': 'xnat:mrScanData'})
@@ -175,9 +173,7 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
     fpath_output = Path(fpath_output)
 
-    subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
-
-    __, __, scan = check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
+    scan = get_scan_from_project(xnat_project, *get_ids_from_dict(xnat_file_dict))
 
     if check_if_scan_was_reconstructed(scan):
 
@@ -222,14 +218,21 @@ def share_list_of_scans(xnat_server, list_xnat_dicts):
     return True
 
 def create_subject_experiment_lookup(project, list_xnat_dicts):
-
+    '''
+    Function to create a dictionary to relate XNAT subject-ids to multiple experiment-ids
+    input:
+        project: xnat-project
+        list_xnat_dicts: list of dictionaries containing subject_id, experiment_id and scan_id as keys
+    output:
+        dictionary that holds all different experiment id-s for one subject_id in the list_xnat_dicts
+    '''
     list_subjects = []
 
     for xd in list_xnat_dicts:
         sid = xd["subject_id"]
         list_subjects.append(sid)
 
-        check_xnat_file_existence(project, sid, xd["experiment_id"], xd["scan_id"])
+        get_scan_from_project(project, sid, xd["experiment_id"], xd["scan_id"])
 
     list_subjects = set(list_subjects)
 
@@ -270,22 +273,6 @@ def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_proje
         current_app.logger.warning(f"The destination project already contains a subject with the id {subject_id}. Skipping the sharing to destination project.")
 
     return True
-
-def check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id):
-
-    xnat_subject = xnat_project.subject(subject_id)
-    if not xnat_subject.exists():
-        raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
-
-    experiment = xnat_subject.experiment(experiment_id)
-    if not experiment.exists():
-        raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
-
-    scan = experiment.scan(scan_id)
-    if not scan.exists():
-        raise NameError(f"The subject {subject_id} does not exist in project {xnat_project}.")
-
-    return xnat_subject, experiment, scan
 
 def download_dcm_images(file_list):
 
@@ -354,20 +341,21 @@ def get_xnat_scan(xnat_experiment, scan_id):
 
     return xnat_scan
 
-def get_scan_from_file(xnat_server: pyxnat.Interface, file: database.File, project_name: str):
+
+def get_scan_from_project(xnat_project, subject_id: str, experiment_id: str, scan_id: str):
     '''
     Getter for a xnat scan object defined by a database.File object
     input: 
-        xnat_server: pyxnat.Interface object
-        file: database.File object defining an existing scan
-        project_name: name of the project on the xnat server
+        xnat_project: pyxnat project
+        subject_id: xnat subject id for scan
+        experiment_id: xnat experiment id for scan
+        scan_id: xnat scan id for scan
     output:
         xnat scan object
     '''
-    project = get_xnat_project(xnat_server, project_name)
-    subject = get_xnat_subject(project, file.xnat_subject_id)
-    experiment = get_xnat_experiment(subject, file.xnat_experiment_id)
-    scan = get_xnat_scan(experiment, file.xnat_scan_id)
+    subject = get_xnat_subject(xnat_project, subject_id)
+    experiment = get_xnat_experiment(subject, experiment_id)
+    scan = get_xnat_scan(experiment, scan_id)
 
     return scan
 
@@ -390,10 +378,12 @@ def delete_scans_from_vault(list_files: list):
     '''
     # Connect to server
     xnat_server = get_xnat_connection()
+    vault_project = get_xnat_vault_project(xnat_server)
 
     for f in list_files:
         try:
-            scan = get_scan_from_file(xnat_server, f, current_app.config['XNAT_PROJECT_ID_VAULT'])
+            xnat_file_dict = get_xnat_dicts_from_file_list([f])[0]
+            scan = get_scan_from_project(vault_project, *get_ids_from_dict(xnat_file_dict))
             scan.delete()
         except NameError as e:
             current_app.logger.error(f"Deleting a scan failed. \n The error is: {e}")

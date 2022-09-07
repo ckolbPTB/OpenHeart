@@ -54,7 +54,7 @@ def upload_DICOM_files_to_scan(xnat_project, xnat_file_dict, list_filenames_dico
     experiment_id = xnat_file_dict["experiment_id"]
     scan_id = xnat_file_dict["scan_id"]
 
-    __, __, scan = xnat.check_xnat_file_existence(xnat_project, subject_id, experiment_id, scan_id)
+    scan = xnat.get_scan_from_project(xnat_project, subject_id, experiment_id, scan_id)
 
     scan_resource = scan.resource('DICOM')
     scan_resource.put(list_filenames_dicoms, format='DCM', label='DICOM', content='IMAGE', **{'xsi:type': 'xnat:mrScanData'})
@@ -123,7 +123,7 @@ def test_upload_rawdata_file_to_scan(app):
 
         delete_subjects_from_vault(xnat_server, app, xnat_files)
 
-        assert success, "Something went wront with the uplaod of the file to the XNAT"
+        assert success, "Something went wront with the upload of the file to the XNAT"
 
         xnat_server.disconnect()
 
