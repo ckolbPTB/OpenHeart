@@ -7,6 +7,7 @@ services:
       - ohapp.env
     ports:
       - "5001:5001"
+      - "465:465"
     volumes:
       - ./:/app
       - sql_volume:/db
