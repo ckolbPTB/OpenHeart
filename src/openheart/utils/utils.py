@@ -54,8 +54,16 @@ def min01perc(dat):
     return (dat[int(np.round(dat.shape[0] * 0.01))])
 
 
-def read_and_process_dicoms(dicom_path: Path):
-
+def read_and_process_dicoms(dicom_path:Path):
+    '''
+    Reads all dicoms in a folder and processes them into an array that can be stored as a gif.
+    Data are sorted wrt. to their SliceLocation and EchoTime fields in the dicom tags.
+    input:
+        dicom_path: pathlib.Path object for the folder containing the dicoms
+    output:
+        ds: numpy array containing the image data
+        num_files: number of detected dicoms
+    '''
     dcm_files = sorted(dicom_path.glob("*.dcm"))
 
     num_files = len(dcm_files)
@@ -93,7 +101,19 @@ def read_and_process_dicoms(dicom_path: Path):
 
     return ds, num_files
 
-def create_qc_gif(dicom_path: Path, filename_output_with_ext:Path):
+def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
+    '''
+    Stores a gif generated from dicoms found in dicom_path into the file filename_output_with_ext.
+    Parent path of filename_output_with_ext has to exist.
+    gif speed is set to 30 fps.
+    input:
+        dicom_path: pathlib.Path object where dicoms are located.
+        filename_output_with_ext: pathlib.Path object where gif should be stored including .gif extension.
+    output:
+        None
+    '''
+    assert dicom_path.exists(), f"The directory where the dicoms should be found does not exist."
+    assert filename_output_with_ext.parent.exists(), f"The directory {filename_output_with_ext.parent} into which the .gif should be stored does not exist."
 
     ds, num_files = read_and_process_dicoms(dicom_path)
 
@@ -103,8 +123,10 @@ def create_qc_gif(dicom_path: Path, filename_output_with_ext:Path):
 
     return None
 
-def save_gif(im, fpath_output_with_ext:Path, cmap='gray', min_max_val=[], total_dur=2):
-
+def save_gif(im:np.array, fpath_output_with_ext:Path, cmap='gray', min_max_val=[], total_dur=2):
+    '''
+    Function to store a numpy array into a .gif file of duration total_dur.
+    '''
     # Translate image from grayscale to rgb
     cmap = plt.get_cmap(cmap)
     if len(min_max_val) == 0:
@@ -130,9 +152,12 @@ def save_gif(im, fpath_output_with_ext:Path, cmap='gray', min_max_val=[], total_
 def create_md5_from_string(some_string):
     return hashlib.md5(some_string.encode('utf-8')).hexdigest()
 
-def create_md5_from_file(fname):
+def create_md5_from_file(filepath_with_ext:str):
+    '''
+    Function generating md5 hash from file content, identifiying files uniquely.
+    '''
     hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
+    with open(filepath_with_ext, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
@@ -156,23 +181,32 @@ def convert_dat_file(filename, measurement_number=1):
     client.containers.run(image="johannesmayer/s2i", command=conversion_command, volumes=volumes, detach=False)
     return filename_output
 
-def rename_h5_file(fname_out):
-
-    md5_hash = create_md5_from_file(str(fname_out))
-    cfile_name = (fname_out.parent / md5_hash).with_suffix(".h5")
+def rename_h5_file(fname_file_with_ext:Path):
+    '''
+    Renames a file into a unique filename based on an mh5 hash from its file content
+    '''
+    md5_hash = create_md5_from_file(str(fname_file_with_ext))
+    cfile_name = (fname_file_with_ext.parent / md5_hash).with_suffix(".h5")
     try:
-        current_app.logger.info(f"Trying to rename {fname_out} into {cfile_name}.")
-        fname_out.rename(cfile_name)
+        current_app.logger.info(f"Trying to rename {fname_file_with_ext} into {cfile_name}.")
+        fname_file_with_ext.rename(cfile_name)
     except FileExistsError:
-        current_app.logger.warning(f"You tried to rename {fname_out} into {cfile_name}, but the latter alraedy exists. Ignoring request.")
+        current_app.logger.warning(f"You tried to rename {fname_file_with_ext} into {cfile_name}, but the latter alraedy exists. Ignoring request.")
 
     return cfile_name
 
 def clean_up_user_files():
-
+    '''
+    Function removing all files that are not supposed to be stored on the webserver.
+    Currently deleting:
+        all files that are held by the user_id in the database.
+    ToDo:
+        .zip files from the download
+        delete the stored .gif used for previewing the reconstructions.
+        -> could just store everything in the temporary folder that a user has and delete it upon logout.
+    '''
     if current_user.is_authenticated:
-        list_user_files = File.query.filter_by(user_id=current_user.id,
-                                            submitted=False).all()
+        list_user_files = File.query.filter_by(user_id=current_user.id).all()
 
         for f in list_user_files:
             if os.path.isfile(f.name):
