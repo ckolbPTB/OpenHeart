@@ -1,5 +1,6 @@
 from pathlib import Path
-from openheart import database
+from uuid import uuid4
+from openheart.database import File
 import pyxnat
 from datetime import datetime
 import os
@@ -43,7 +44,6 @@ def get_xnat_open_project(xnat_server):
     return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_OPEN')
 
 def upload_raw_mr_to_vault(list_files:list):
-
     return upload_raw_mr(list_files, current_app.config['XNAT_PROJECT_ID_VAULT'])
 
 def set_xnat_IDs_in_files(list_files: list) -> list:
@@ -58,7 +58,7 @@ def set_xnat_IDs_in_files(list_files: list) -> list:
     for idx, f in enumerate(list_files):
         experiment_id = utils.create_md5_from_string(f.subject_unique)
         experiment_id = f"Exp-{experiment_id[:digits_experiment_id]}"
-        scan_id = f'Scan_{idx}'
+        scan_id = f'Scan_{uuid4()}'
 
         f.xnat_subject_id = f.subject_unique
         f.xnat_experiment_id = experiment_id
