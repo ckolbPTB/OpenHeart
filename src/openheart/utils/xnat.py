@@ -44,7 +44,7 @@ def get_xnat_open_project(xnat_server):
     return get_xnat_project(xnat_server, 'XNAT_PROJECT_ID_OPEN')
 
 def upload_raw_mr_to_vault(list_files:list):
-    return upload_raw_mr(list_files, current_app.config['XNAT_PROJECT_ID_VAULT'])
+    return upload_raw_mr(list_files, 'XNAT_PROJECT_ID_VAULT')
 
 def set_xnat_IDs_in_files(list_files: list) -> list:
     '''
