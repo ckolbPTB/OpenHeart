@@ -4,13 +4,13 @@
 
 ## Installation
 You need to have `docker` as well as `docker-compose` installed.
-All other requirements will be installed into the docker container the application is running in.
+All other requirements will be installed into the docker container where the application is running.
 
 ## Developing OpenHeart
 The current setup in the Dockerfile runs `RUN pip install -e .` and mounts the current directory into the `/app` directory.
 This means while you develop the application locally it will automatically update inside the docker container and you don't need to rebuild the image or stop the container. The app will re-start automatically upon storing changes to the source code. (Caveat: this means you should not change the code while you use the app or wait for an upload etc.)
 
-This of course only includes only changes to the app. Python packages you add to the `requirements.txt` will require a new build of the image of course.
+This of course only includes changes to the app. Python packages you add to the `requirements.txt` will require a new build of the image of course.
 
 ## Usage
 To start the app run
