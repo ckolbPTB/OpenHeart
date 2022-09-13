@@ -82,7 +82,7 @@ def upload_raw_mr(list_files: list, project_name: str):
     try:
         xnat_project = get_xnat_project(xnat_server, project_name)
     except NameError as e:
-        current_app.logger.error(f"Accessing the project {xnat_project} failed. \n The error is {e}.")
+        current_app.logger.error(f"Accessing the project {project_name} failed. \n The error is {e}.")
         xnat_server.disconnect()
         return False
 
