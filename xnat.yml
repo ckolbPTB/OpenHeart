@@ -10,7 +10,7 @@ dependencies:
   - matplotlib
   - pip:
     - setuptools
-    - flask
+    - flask==2.2.0
     - docker
     - flask-mail
     - flask-sqlalchemy
