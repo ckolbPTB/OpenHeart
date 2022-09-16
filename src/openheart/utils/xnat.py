@@ -209,7 +209,7 @@ def share_list_of_scans(xnat_server, list_xnat_dicts):
     xnat_vault = get_xnat_vault_project(xnat_server)
     xnat_open = get_xnat_open_project(xnat_server)
 
-    #check if all are in 
+    # Get subjects and corresponding experiments to be shared
     lookup_subject_experiments = create_subject_experiment_lookup(xnat_vault, list_xnat_dicts)
 
     for subj in lookup_subject_experiments:
@@ -372,23 +372,27 @@ def commit_subjects_to_open(list_files_to_commit):
 
     return success
 
-def delete_scans_from_vault(list_files: list):
+def delete_scans_from_vault(list_files_to_delete: list):
     '''
     Function deleting files from the XNAT server project defined by app.config['XNAT_PROJECT_ID_VAULT']
     input: list of database.File objects
     output: True
     '''
+
     # Connect to server
     xnat_server = get_xnat_connection()
-    vault_project = get_xnat_vault_project(xnat_server)
+    xnat_vault = get_xnat_vault_project(xnat_server)
 
-    for f in list_files:
+    list_xnat_dicts = get_xnat_dicts_from_file_list(list_files_to_delete)
+    lookup_subject_experiments = create_subject_experiment_lookup(xnat_vault, list_xnat_dicts)
+
+    # Delete all subjects which are not committed to the open xnat project
+    for subj in lookup_subject_experiments:
         try:
-            xnat_file_dict = get_xnat_dicts_from_file_list([f])[0]
-            scan = get_scan_from_project(vault_project, *get_ids_from_dict(xnat_file_dict))
-            scan.delete()
+            subject = get_xnat_subject(xnat_vault, subj)
+            subject.delete()
         except NameError as e:
-            current_app.logger.error(f"Deleting a scan failed. \n The error is: {e}")
+            current_app.logger.error(f"Deleting of subject with id {subj} failed. \n The error is: {e}")
 
     xnat_server.disconnect()
 

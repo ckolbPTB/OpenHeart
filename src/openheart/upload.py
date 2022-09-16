@@ -125,7 +125,7 @@ def check():
                 current_app.logger.info(f"Finished upload request to {f.xnat_experiment_id}.")
                 current_app.logger.info(f"Finished upload request to {f.xnat_scan_id}.")
         else:
-            raise AssertionError(f"Something with thte xnat upload went wrong.")
+            raise AssertionError(f"Something with the xnat upload went wrong.")
 
         db.session.commit()
 
