@@ -297,14 +297,14 @@ def create_gif_for_file(xnat_project, xnat_id_dict, f):
 
     download_dcm_from_scan(xnat_project, xnat_id_dict, tmp_path_file)
 
-    filepath_output = Path("/app/src/openheart/static/animations/")
+    filepath_output = Path(current_app.config['OH_APP_PATH']) / "src/openheart/static/animations/"
     filepath_output.mkdir(parents=True, exist_ok=True)
     filename_output = filepath_output / f"animation_file_{f.id}.gif"
 
-    # it may take some time to unzip the files s.t. this funciton is called before 
+    # it may take some time to unzip the files s.t. this function is called before
     if len(sorted(tmp_path_file.glob("*.dcm"))) > 0:
-        create_gif_from_downloaded_recon(tmp_path_file, filepath_output)
-        f.reconstructed=True
+        create_gif_from_downloaded_recon(tmp_path_file, filename_output)
+        f.reconstructed = True
         return True
     else:
         return False
