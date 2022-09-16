@@ -23,7 +23,7 @@
                                 <div class="carousel-inner">
                                     {%for f in files_for_subject[sub]%}
                                         {% set file_id = f.id %}
-                                        {% set scan = f.xnat_scan_id %}
+                                        {% set scan = f.name_orig %}
                                         {% if loop.index0 == 0 %}
                                             <div class="carousel-item active" data-bs-interval="10000">
                                         {% else %}

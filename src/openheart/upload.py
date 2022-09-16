@@ -49,18 +49,18 @@ def uploader():
 
                         if utils.valid_extension(czip_content):
 
-                            fname_out = filepath_out / cfile
-                            zip_info.filename = str(cfile)
+                            fname_out = f"user_{current_user.id}_subj_{cpath}_{cfile}"
+                            zip_info.filename = str(fname_out)
                             zip.extract(zip_info, path=filepath_out)
-                            fname_out = fname_out.rename( filepath_out / f"user_{current_user.id}_subj_{cpath}_{cfile}")
 
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
                             file = File(user_id=current_user.id, 
-                                        name = str(fname_out),
+                                        name=str(filepath_out / fname_out),
+                                        name_orig=str(cfile),
                                         name_unique="_", 
                                         subject=str(cpath),
-                                        subject_unique = subject_timed,
-                                        format = czip_content.suffix)
+                                        subject_unique=subject_timed,
+                                        format=czip_content.suffix)
 
                             db.session.add(file)
                 db.session.commit()
@@ -95,7 +95,6 @@ def convert_files():
     return True
 
 def uniquely_identify_files():
-
     list_files = File.query.filter_by(user_id=current_user.id,
                                       name_unique = "_",
                                       format='.h5', 

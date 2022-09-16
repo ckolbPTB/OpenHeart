@@ -247,7 +247,6 @@ def create_subject_experiment_lookup(project, list_xnat_dicts):
     for subj in lookup_subject_experiments:
         lookup_subject_experiments[subj] = set(lookup_subject_experiments[subj])
 
-
     return lookup_subject_experiments
 
 def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_project, subject_id, list_experiment_ids, primary=True):
@@ -261,7 +260,7 @@ def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_proje
     current_app.logger.info(f"Trying to share into project {name_xnat_dst_project}")
 
     xnat_subject = src_project.subject(subject_id)
-    
+
     dst_subject = dst_project.subject(subject_id)
     if not dst_subject.exists():
         for eid in list_experiment_ids:

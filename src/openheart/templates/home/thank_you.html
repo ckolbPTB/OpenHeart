@@ -13,7 +13,7 @@
             </p>
             {%for f in submitted_files %}
                 {% set subject = f.subject %}
-                {% set scan = f.xnat_scan_id %}
+                {% set scan = f.name_orig %}
                 <p class="lead">
                   {{subject}}
                 </p>
