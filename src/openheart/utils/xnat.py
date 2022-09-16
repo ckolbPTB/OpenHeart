@@ -261,14 +261,13 @@ def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_proje
     current_app.logger.info(f"Trying to share into project {name_xnat_dst_project}")
 
     xnat_subject = src_project.subject(subject_id)
-
+    
     dst_subject = dst_project.subject(subject_id)
     if not dst_subject.exists():
-        xnat_subject.share(name_xnat_dst_project, primary=primary)
-
         for eid in list_experiment_ids:
             cexp = xnat_subject.experiment(eid)
             cexp.share(name_xnat_dst_project, primary=primary)
+        xnat_subject.share(name_xnat_dst_project, primary=primary)
     else:
         current_app.logger.warning(f"The destination project already contains a subject with the id {subject_id}. Skipping the sharing to destination project.")
 
