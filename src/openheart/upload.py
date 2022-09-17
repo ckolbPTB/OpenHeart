@@ -15,10 +15,11 @@ from openheart.database import db, User, File
 
 bp = Blueprint('upload', __name__, url_prefix='/upload')
 
+
 @bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
-    utils.clean_up_user_files()
+    utils.clean_up_user_files(recreate_user_folders=True)
     return render_template('upload/upload.html')
 
 
@@ -31,10 +32,11 @@ def uploader():
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             # Get info from database
             user = User.query.get(current_user.id)
+            user_folder = 'Uid' + str(current_user.id)
 
             # Save file in upload folder
             f = request.files['file']
-            filepath_out = Path(current_app.config['DATA_FOLDER'])
+            filepath_out = Path(current_app.config['DATA_FOLDER']) / user_folder
             f_name = filepath_out / secure_filename(f"{user.id}_{f.filename}")
             f.save(str(f_name))
 
@@ -64,6 +66,11 @@ def uploader():
 
                             db.session.add(file)
                 db.session.commit()
+
+            # Remove zip file
+            os.remove(str(f_name))
+
+            # Transform .dat to .h5 and rename .h5 with unique uid
             postprocess_upload()
 
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
@@ -73,9 +80,11 @@ def uploader():
 
     return render_template('upload/upload.html')
 
+
 def postprocess_upload():
     assert convert_files(), "The conversion of some files failed."
     assert uniquely_identify_files(), "The renaming into md5 hashs failed."
+
 
 @login_required
 def convert_files():
@@ -93,6 +102,7 @@ def convert_files():
     db.session.commit()
 
     return True
+
 
 def uniquely_identify_files():
     list_files = File.query.filter_by(user_id=current_user.id,
@@ -149,7 +159,8 @@ def check_images():
     subject_file_lut = utils.create_subject_file_lookup(files)
 
     current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
-    return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()), files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
+    return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
+                           files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
 
 
 

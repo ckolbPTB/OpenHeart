@@ -1,7 +1,7 @@
 from pathlib import Path
 import pydicom
 import imageio
-import glob, os
+import glob, os, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import hashlib
@@ -101,6 +101,7 @@ def read_and_process_dicoms(dicom_path:Path):
 
     return ds, num_files
 
+
 def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
     '''
     Stores a gif generated from dicoms found in dicom_path into the file filename_output_with_ext.
@@ -122,6 +123,7 @@ def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
     save_gif(ds, filename_output_with_ext, cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
 
     return None
+
 
 def save_gif(im:np.array, fpath_output_with_ext:Path, cmap='gray', min_max_val=[], total_dur=2):
     '''
@@ -149,8 +151,10 @@ def save_gif(im:np.array, fpath_output_with_ext:Path, cmap='gray', min_max_val=[
 
     return None
 
+
 def create_md5_from_string(some_string):
     return hashlib.md5(some_string.encode('utf-8')).hexdigest()
+
 
 def create_md5_from_file(filepath_with_ext:str):
     '''
@@ -162,9 +166,11 @@ def create_md5_from_file(filepath_with_ext:str):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
+
 def valid_extension(zipfile_content):
     list_valid_suffixes = ['.h5', '.dat']
     return zipfile_content.suffix in list_valid_suffixes 
+
 
 def convert_dat_file(filename, measurement_number=1):
     filename = Path(filename)
@@ -181,6 +187,7 @@ def convert_dat_file(filename, measurement_number=1):
     client.containers.run(image="johannesmayer/s2i", command=conversion_command, volumes=volumes, detach=False)
     return filename_output
 
+
 def rename_h5_file(fname_file_with_ext:Path):
     '''
     Renames a file into a unique filename based on an mh5 hash from its file content
@@ -195,27 +202,49 @@ def rename_h5_file(fname_file_with_ext:Path):
 
     return cfile_name
 
-def clean_up_user_files():
+
+def clean_up_user_files(recreate_user_folders=False):
     '''
-    Function removing all files that are not supposed to be stored on the webserver.
-    Currently deleting:
-        all files that are held by the user_id in the database.
-    ToDo:
-        .zip files from the download
-        delete the stored .gif used for previewing the reconstructions.
-        -> could just store everything in the temporary folder that a user has and delete it upon logout.
+    Function removing unique folders of the current user with its content.
+    The folder names are 'Uid'+str(current_user.id) and one is located in
+    OH_DATA_PATH -> uploaded zip files, extracted raw files, downloaded
+                    dicom files,...
+    and one in
+    OH_APP_PATH + '/src/openheart/static/ -> animated gifs
+
+    If recreate_user_folders == True then the two folders are created again
+    as empty folders.
     '''
     if current_user.is_authenticated:
-        list_user_files = File.query.filter_by(user_id=current_user.id).all()
+        user_folder = 'Uid' + str(current_user.id)
+        oh_data_path_user = Path(current_app.config['DATA_FOLDER'] + user_folder)
+        oh_app_path_user = Path(current_app.config['OH_APP_PATH'] + '/src/openheart/static/' + user_folder)
 
-        for f in list_user_files:
-            if os.path.isfile(f.name):
-                os.remove(f.name)
-            if os.path.isfile(f.name_unique):
-                os.remove(f.name_unique)
-            db.session.delete(f)
+        # Remove animated gifs
+        if Path.exists(oh_app_path_user):
+            shutil.rmtree(oh_app_path_user)
 
-        db.session.commit()
+        if Path.exists(oh_data_path_user):
+            # Remove any files in oh_data_path_user from the database
+            for f in oh_data_path_user.iterdir():
+                # Check both for original files and unique file names
+                user_file = File.query.filter_by(user_id=current_user.id, submitted=False, name_unique=str(f)).all()
+                for uf in user_file:
+                    db.session.delete(uf)
+
+                user_file = File.query.filter_by(user_id=current_user.id, submitted=False, name=str(f)).all()
+                for uf in user_file:
+                    db.session.delete(uf)
+
+            db.session.commit()
+
+            # Remove uploaded zip files, extracted raw files, downloaded dicom files,...
+            shutil.rmtree(oh_data_path_user)
+
+        # Create empty folders for user
+        if recreate_user_folders:
+            oh_data_path_user.mkdir()
+            oh_app_path_user.mkdir()
 
     return(True)
 

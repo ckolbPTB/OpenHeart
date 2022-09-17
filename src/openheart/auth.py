@@ -1,13 +1,9 @@
-from sqlalchemy.exc import IntegrityError
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for, current_app
 )
-# from werkzeug.security import check_password_hash, generate_password_hash
 
 from flask_mail import Message
 from flask_login import current_user, login_user, logout_user
-
-from datetime import datetime
 
 import random
 from openheart import mail
@@ -74,6 +70,7 @@ def login(email):
                 flash("Wrong Token.")
 
     return render_template('auth/login.html', user_email=email)
+
 
 @bp.route('/logout')
 def logout():

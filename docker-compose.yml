@@ -13,7 +13,6 @@ services:
       - sql_volume:/db
       - sql_volume:/logs
       - data_volume:/data
-      - temp_volume:/temp
       - /home/sirfuser/XNATTestData:/test # this must not be a vagrant-synchronised folder cause zip extract will not work in them.
 
 volumes:
