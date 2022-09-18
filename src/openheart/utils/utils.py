@@ -98,7 +98,7 @@ def read_and_process_dicoms(dicom_path:Path):
     ds_slices = np.array_split(ds, num_slices, axis=2)
 
     # Montage for overview
-    for dyn in range(ds[0].shape[2]):
+    for dyn in range(ds_slices[0].shape[2]):
         tmp = skimage.util.montage([x[:,:,dyn] for x in ds_slices], fill=0)
         if dyn == 0:
             ds_montage = np.zeros(tmp.shape + (ds_slices[0].shape[2],))

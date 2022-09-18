@@ -13,4 +13,5 @@ pydicom
 ismrmrd
 pytest
 coverage
+scikit-image
 git+https://github.com/ckolbPTB/pyxnat.git@share_primary

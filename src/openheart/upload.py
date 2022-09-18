@@ -160,7 +160,7 @@ def check_images():
 
     current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
     return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
-                           files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
+                           files_for_subject=subject_file_lut, reload=(all_recons_performed == False))
 
 
 
@@ -172,8 +172,8 @@ def submit():
             return redirect(url_for('upload.upload'))
         else:
 
-            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                    transmitted=True, reconstructed=True, submitted=False).all()
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
+                                              reconstructed=True, submitted=False).all()
 
             files_rejected = []
             for f in list_files:
@@ -186,38 +186,15 @@ def submit():
 
             db.session.commit()
 
-            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                            transmitted=True, reconstructed=True, submitted=False).all()
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
+                                              reconstructed=True, submitted=False).all()
             files_accepted = []
             for f in list_files:
                 if 'check_'+str(f.subject) in request.form:
                     files_accepted.append(f)
 
-            file_list = files_accepted
-
-            user_folder = 'Uid' + str(current_user.id)
-            oh_app_path_user = Path(current_app.config['OH_APP_PATH'] + '/src/openheart/static/' + user_folder)
-            filepath_output = oh_app_path_user / "animations"
-            filename_output = filepath_output / f"animation_file_{f.id}.gif"
-
-            str(filename_output).replace('.gif', '_snapshot_t.gif')
-            str(filename_output).replace('.gif', '_snapshot.gif')
-
             # Add snapshots
-            xnat_server = xnat.get_xnat_connection()
-            xnat_vault = xnat.get_xnat_vault_project(xnat_server)
-            list_xnat_dicts = xnat.get_xnat_dicts_from_file_list(file_list)
-
-            for xnd, f in zip(list_xnat_dicts, file_list):
-                scan = xnat.get_scan_from_project(xnat_vault, *xnat.get_ids_from_dict(xnd))
-                print(scan)
-
-            xnat_server.disconnect()
-
-            #scan_resource = scan.resource('SNAPSHOTS')
-            #scan_resource.put([qc_im_path + cfile + '_snapshot_t.gif', ], format='gif', content='THUMBNAIL')
-            #scan_resource.put([qc_im_path + cfile + '_snapshot.gif', ], format='gif', content='ORIGINAL')
-
+            xnat.add_snapshot_images(files_accepted)
 
             # Commit subjects to open project
             xnat.commit_subjects_to_open(files_accepted)

@@ -388,6 +388,30 @@ def get_scan_from_project(xnat_project, subject_id: str, experiment_id: str, sca
     return scan
 
 
+def add_snapshot_images(list_files_to_commit):
+
+    # Get path to animations
+    user_folder = 'Uid' + str(current_user.id)
+    oh_app_path_user = Path(current_app.config['OH_APP_PATH'] + '/src/openheart/static/' + user_folder)
+    filepath_output = oh_app_path_user / "animations"
+
+    # Add snapshots
+    xnat_server = get_xnat_connection()
+    xnat_vault = get_xnat_vault_project(xnat_server)
+    list_xnat_dicts = get_xnat_dicts_from_file_list(list_files_to_commit)
+
+    for xnd, f in zip(list_xnat_dicts, list_files_to_commit):
+        scan = get_scan_from_project(xnat_vault, *get_ids_from_dict(xnd))
+
+        scan_resource = scan.resource('SNAPSHOTS')
+        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot_t.gif'), ],
+                          format='gif', content='THUMBNAIL')
+        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot.gif'), ],
+                          format='gif', content='ORIGINAL')
+
+    xnat_server.disconnect()
+
+
 def commit_subjects_to_open(list_files_to_commit):
 
     xnat_server = get_xnat_connection()
