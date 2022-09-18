@@ -107,6 +107,23 @@ def read_and_process_dicoms(dicom_path:Path):
     return ds, ds_slices[int(num_slices//2)], ds_montage, num_files
 
 
+def get_dicom_header(dicom_path:Path):
+    '''
+    Get dicom header information from folder with dicom files in it.
+    input:
+        dicom_path: pathlib.Path object where dicoms are located.
+    output:
+        dicom headers of all files
+    '''
+    assert dicom_path.exists(), f"The directory where the dicoms should be found does not exist."
+
+    dcm_files = sorted(dicom_path.glob("*.dcm"))
+    dcm_header = []
+    for ind, f in enumerate(dcm_files):
+        dcm_header.append(pydicom.dcmread(str(f), stop_before_pixels=True))
+    return(dcm_header)
+
+
 def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
     '''
     Stores a gif generated from dicoms found in dicom_path into the file filename_output_with_ext.
@@ -129,16 +146,16 @@ def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
     # Gif for QC on homepage
     save_gif(ds, str(filename_output_with_ext), cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
 
-    # Gifs for xnat preview
-    save_gif(ds_central_slice, str(filename_output_with_ext).replace('.gif', '_snapshot_t.gif'), cmap='gray',
-             min_max_val=[], total_dur=1)
+    # Gifs for xnat preview (snapshots)
+    save_gif(ds_central_slice, str(filename_output_with_ext).replace('.gif', '_snapshot_t.gif'),
+             cmap='gray', min_max_val=[], total_dur=1)
     save_gif(ds_montage, str(filename_output_with_ext).replace('.gif', '_snapshot.gif'), cmap='gray',
              min_max_val=[], total_dur=1)
 
     return None
 
 
-def save_gif(im:np.array, fpath_output_with_ext:str, cmap='gray', min_max_val=[], total_dur=2):
+def save_gif(im:np.array, fpath_output_with_ext:str, cmap='gray', min_max_val=[], total_dur=2.0):
     '''
     Function to store a numpy array into a .gif file of duration total_dur.
     '''

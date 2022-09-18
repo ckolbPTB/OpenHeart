@@ -182,7 +182,12 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
 
 
 def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
-
+    '''
+    If dicom images have been reconstructed, they are downloaded as a zip file and
+    extracted.
+    To enable viewing of the dicom images on the xnat server with the ohif viewer, the
+    dicom uid is added as a xnat scan parameter.
+    '''
     fpath_output = Path(fpath_output)
 
     scan = get_scan_from_project(xnat_project, *get_ids_from_dict(xnat_file_dict))
@@ -193,6 +198,10 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
         fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
         with ZipFile(fname_dcm_zip, 'r') as zip:
             zip.extractall(str(fpath_output))
+
+            # Update scan uid with (0020,000E) 	Series Instance UID
+            dcm_header = utils.get_dicom_header(fpath_output)
+            scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
 
         delete_files_from_path(fpath_output, {".zip"})
 
