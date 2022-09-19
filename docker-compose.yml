@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    env_file:
+      - ohapp.env
+    ports:
+      - "5001:5001"
+      - "465:465"
+    volumes:
+      - ./:/app
+      - sql_volume:/db
+      - sql_volume:/logs
+      - data_volume:/data
+      - /home/sirfuser/XNATTestData:/test # this must not be a vagrant-synchronised folder cause zip extract will not work in them.
+
+volumes:
+  sql_volume:
+  data_volume:
+  temp_volume:
