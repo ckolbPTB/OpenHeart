@@ -160,7 +160,7 @@ def check_images():
 
     current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
     return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
-                           files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
+                           files_for_subject=subject_file_lut, reload=(all_recons_performed == False))
 
 
 
@@ -172,8 +172,8 @@ def submit():
             return redirect(url_for('upload.upload'))
         else:
 
-            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                    transmitted=True, reconstructed=True, submitted=False).all()
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
+                                              reconstructed=True, submitted=False).all()
 
             files_rejected = []
             for f in list_files:
@@ -186,13 +186,17 @@ def submit():
 
             db.session.commit()
 
-            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                            transmitted=True, reconstructed=True, submitted=False).all()
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
+                                              reconstructed=True, submitted=False).all()
             files_accepted = []
             for f in list_files:
                 if 'check_'+str(f.subject) in request.form:
                     files_accepted.append(f)
 
+            # Add snapshots
+            xnat.add_snapshot_images(files_accepted)
+
+            # Commit subjects to open project
             xnat.commit_subjects_to_open(files_accepted)
 
             for f in files_accepted:

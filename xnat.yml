@@ -8,6 +8,7 @@ dependencies:
   - scipy
   - imageio
   - matplotlib
+  - scikit-image
   - pip:
     - setuptools
     - flask==2.2.0

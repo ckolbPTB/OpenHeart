@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import hashlib
 import docker
+import skimage
 
 from flask import current_app
 from flask_login import current_user
@@ -70,27 +71,17 @@ def read_and_process_dicoms(dicom_path:Path):
     current_app.logger.info(f"Currently we found {num_files} dicoms.")
 
     # Get header information for sorting
-    sort_key_words = ['SliceLocation', 'EchoTime']
+    sort_key_words = ['ImageNumber', 'EchoTime', 'SliceLocation']
     sort_idx = np.zeros((len(sort_key_words), num_files), dtype=np.float32)
     for ind, f in enumerate(dcm_files):
         ds = pydicom.dcmread(str(f))
         for jnd in range(len(sort_key_words)):
             if sort_key_words[jnd] in ds:
-                sort_idx[jnd, ind] = float(ds.data_element(sort_key_words[0]).value)
+                sort_idx[jnd, ind] = float(ds.data_element(sort_key_words[jnd]).value)
     slice_idx = np.lexsort(sort_idx)
 
-    # ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRBigEndian
     # Read data
     ds = [pydicom.dcmread(str(f)) for f in dcm_files]
-
-    print('FIX FOR BROKEN DICOM!!!!!')
-    for d in ds:
-        d.BitsAllocated = 16
-        d.SamplesPerPixel = 1
-        d.PhotometricInterpretation = 'MONOCHROME1'
-        d.PixelRepresentation = 1
-        d.BitsStored = 16
-
     ds[:] = map(lambda x: x.pixel_array, ds)
 
     # Transform to array and resort
@@ -99,7 +90,38 @@ def read_and_process_dicoms(dicom_path:Path):
     ds = np.moveaxis(ds, 0, -1)
     ds = np.reshape(ds, ds.shape[:2] + (-1,))
 
-    return ds, num_files
+    # Number of slices
+    slice_idx = sort_key_words.index('SliceLocation')
+    num_slices = len(np.unique(sort_idx[slice_idx,:]))
+
+    # Split into slices
+    ds_slices = np.array_split(ds, num_slices, axis=2)
+
+    # Montage for overview
+    for dyn in range(ds_slices[0].shape[2]):
+        tmp = skimage.util.montage([x[:,:,dyn] for x in ds_slices], fill=0)
+        if dyn == 0:
+            ds_montage = np.zeros(tmp.shape + (ds_slices[0].shape[2],))
+        ds_montage[:,:,dyn] = tmp
+
+    return ds, ds_slices[int(num_slices//2)], ds_montage, num_files
+
+
+def get_dicom_header(dicom_path:Path):
+    '''
+    Get dicom header information from folder with dicom files in it.
+    input:
+        dicom_path: pathlib.Path object where dicoms are located.
+    output:
+        dicom headers of all files
+    '''
+    assert dicom_path.exists(), f"The directory where the dicoms should be found does not exist."
+
+    dcm_files = sorted(dicom_path.glob("*.dcm"))
+    dcm_header = []
+    for ind, f in enumerate(dcm_files):
+        dcm_header.append(pydicom.dcmread(str(f), stop_before_pixels=True))
+    return(dcm_header)
 
 
 def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
@@ -116,16 +138,24 @@ def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
     assert dicom_path.exists(), f"The directory where the dicoms should be found does not exist."
     assert filename_output_with_ext.parent.exists(), f"The directory {filename_output_with_ext.parent} into which the .gif should be stored does not exist."
 
-    ds, num_files = read_and_process_dicoms(dicom_path)
+    ds, ds_central_slice, ds_montage, num_files = read_and_process_dicoms(dicom_path)
 
     fps = 30
     gif_dur_seconds = num_files / fps
-    save_gif(ds, filename_output_with_ext, cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
+
+    # Gif for QC on homepage
+    save_gif(ds, str(filename_output_with_ext), cmap='gray', min_max_val=[], total_dur=gif_dur_seconds)
+
+    # Gifs for xnat preview (snapshots)
+    save_gif(ds_central_slice, str(filename_output_with_ext).replace('.gif', '_snapshot_t.gif'),
+             cmap='gray', min_max_val=[], total_dur=1)
+    save_gif(ds_montage, str(filename_output_with_ext).replace('.gif', '_snapshot.gif'), cmap='gray',
+             min_max_val=[], total_dur=1)
 
     return None
 
 
-def save_gif(im:np.array, fpath_output_with_ext:Path, cmap='gray', min_max_val=[], total_dur=2):
+def save_gif(im:np.array, fpath_output_with_ext:str, cmap='gray', min_max_val=[], total_dur=2.0):
     '''
     Function to store a numpy array into a .gif file of duration total_dur.
     '''
@@ -147,7 +177,7 @@ def save_gif(im:np.array, fpath_output_with_ext:Path, cmap='gray', min_max_val=[
     for tnd in range(im_rgb.shape[2]):
         anim_im.append(im_rgb[:, :, tnd, :])
         dur.append(total_dur/im_rgb.shape[2])
-    imageio.mimsave(str(fpath_output_with_ext) , anim_im, duration=dur)
+    imageio.mimsave(fpath_output_with_ext , anim_im, duration=dur)
 
     return None
 

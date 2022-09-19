@@ -182,7 +182,12 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
 
 
 def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
-
+    '''
+    If dicom images have been reconstructed, they are downloaded as a zip file and
+    extracted.
+    To enable viewing of the dicom images on the xnat server with the ohif viewer, the
+    dicom uid is added as a xnat scan parameter.
+    '''
     fpath_output = Path(fpath_output)
 
     scan = get_scan_from_project(xnat_project, *get_ids_from_dict(xnat_file_dict))
@@ -193,6 +198,10 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
         fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
         with ZipFile(fname_dcm_zip, 'r') as zip:
             zip.extractall(str(fpath_output))
+
+            # Update scan uid with (0020,000E) 	Series Instance UID
+            dcm_header = utils.get_dicom_header(fpath_output)
+            scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
 
         delete_files_from_path(fpath_output, {".zip"})
 
@@ -386,6 +395,30 @@ def get_scan_from_project(xnat_project, subject_id: str, experiment_id: str, sca
     scan = get_xnat_scan(experiment, scan_id)
 
     return scan
+
+
+def add_snapshot_images(list_files_to_commit):
+
+    # Get path to animations
+    user_folder = 'Uid' + str(current_user.id)
+    oh_app_path_user = Path(current_app.config['OH_APP_PATH'] + '/src/openheart/static/' + user_folder)
+    filepath_output = oh_app_path_user / "animations"
+
+    # Add snapshots
+    xnat_server = get_xnat_connection()
+    xnat_vault = get_xnat_vault_project(xnat_server)
+    list_xnat_dicts = get_xnat_dicts_from_file_list(list_files_to_commit)
+
+    for xnd, f in zip(list_xnat_dicts, list_files_to_commit):
+        scan = get_scan_from_project(xnat_vault, *get_ids_from_dict(xnd))
+
+        scan_resource = scan.resource('SNAPSHOTS')
+        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot_t.gif'), ],
+                          format='gif', content='THUMBNAIL')
+        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot.gif'), ],
+                          format='gif', content='ORIGINAL')
+
+    xnat_server.disconnect()
 
 
 def commit_subjects_to_open(list_files_to_commit):
