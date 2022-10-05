@@ -1,3 +1,4 @@
+import zipfile
 from pathlib import Path
 from uuid import uuid4
 from openheart.database import File
@@ -6,7 +7,7 @@ from datetime import datetime
 import os
 import ismrmrd
 from openheart.utils import utils
-from zipfile import ZipFile
+from zipfile import ZipFile, is_zipfile
 from flask import current_app
 from flask_login import current_user
 
@@ -194,18 +195,24 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
     if check_if_scan_was_reconstructed(scan):
 
-        # Download dicom and extract it
-        fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
-        with ZipFile(fname_dcm_zip, 'r') as zip:
-            zip.extractall(str(fpath_output))
+        # Download dicom
+        try:
+            fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
 
-            # Update scan uid with (0020,000E) 	Series Instance UID
-            dcm_header = utils.get_dicom_header(fpath_output)
-            scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
+            # Extract zip file
+            with ZipFile(fname_dcm_zip, 'r') as zip:
+                zip.extractall(str(fpath_output))
 
-        delete_files_from_path(fpath_output, {".zip"})
+                # Update scan uid with (0020,000E) 	Series Instance UID
+                dcm_header = utils.get_dicom_header(fpath_output)
+                scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
 
-        return True
+            delete_files_from_path(fpath_output, {".zip"})
+            return True
+
+        except Exception as e:
+            current_app.logger.error(f"Downloading reconstructed dicom images failed. \n The error is: {e}")
+            return False
     else:
         return False
 

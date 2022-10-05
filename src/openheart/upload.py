@@ -142,9 +142,9 @@ def check():
     return render_template('upload/check.html')
 
 
-@bp.route('/check_images', methods=['GET', 'POST'])
+@bp.route('/check_images/<int:timeout>', methods=['GET', 'POST'])
 @login_required
-def check_images():
+def check_images(timeout):
 
     files = File.query.filter_by(user_id=current_user.id, format='.h5', 
                                  transmitted=True, submitted=False).all()
@@ -153,8 +153,9 @@ def check_images():
     db.session.commit()
 
     all_recons_performed = True
-    for f in files:
-        all_recons_performed *= f.reconstructed
+    if timeout == 0:
+        for f in files:
+            all_recons_performed *= f.reconstructed
 
     subject_file_lut = utils.create_subject_file_lookup(files)
 
