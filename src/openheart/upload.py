@@ -56,13 +56,9 @@ def uploader():
                             zip.extract(zip_info, path=filepath_out)
 
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
-                            file = File(user_id=current_user.id, 
-                                        name=str(filepath_out / fname_out),
-                                        name_orig=str(cfile),
-                                        name_unique="_", 
-                                        subject=str(cpath),
-                                        subject_unique=subject_timed,
-                                        format=czip_content.suffix)
+                            file = File(user_id=current_user.id, name=str(filepath_out / fname_out),
+                                        name_orig=str(cfile), name_unique="_", subject=str(cpath),
+                                        subject_unique=subject_timed, format=czip_content.suffix)
 
                             db.session.add(file)
                 db.session.commit()
@@ -90,8 +86,8 @@ def postprocess_upload():
 
 @login_required
 def convert_files():
-    list_files = File.query.filter_by(user_id=current_user.id, format='.dat', 
-                                      transmitted=False, reconstructed=False).all()
+    list_files = File.query.filter_by(user_id=current_user.id, format='.dat', transmitted=False,
+                                      reconstructed=False).all()
 
     for file in list_files:
         fname_out = utils.convert_dat_file(file.name)
@@ -107,10 +103,8 @@ def convert_files():
 
 
 def uniquely_identify_files():
-    list_files = File.query.filter_by(user_id=current_user.id,
-                                      name_unique = "_",
-                                      format='.h5', 
-                                      transmitted=False, reconstructed=False).all()
+    list_files = File.query.filter_by(user_id=current_user.id, name_unique = "_", format='.h5', transmitted=False,
+                                      reconstructed=False).all()
 
     for file in list_files:
         md5_identifier = utils.rename_h5_file(Path(file.name))
@@ -124,8 +118,7 @@ def uniquely_identify_files():
 @login_required
 def check():
     if request.method == "POST":
-        list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                          transmitted=False).all()
+        list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False).all()
 
         success = xnat.upload_raw_mr_to_vault(list_files)
         current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
@@ -148,8 +141,7 @@ def check():
 @login_required
 def check_images(timeout):
 
-    files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                 transmitted=True, submitted=False).all()
+    files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True, submitted=False).all()
 
     files = xnat.download_dcm_images(files)
     db.session.commit()
