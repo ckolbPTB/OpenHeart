@@ -73,10 +73,12 @@ def uploader():
             # Transform .dat to .h5 and rename .h5 with unique uid
             postprocess_upload()
 
-            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                              transmitted=False, reconstructed=False).all()
+            files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False,
+                                         reconstructed=False).all()
+            subject_file_lut = utils.create_subject_file_lookup(files)
 
-            return render_template('upload/upload_summary.html', list_files=list_files)
+            return render_template('upload/upload_summary.html', subjects=list(subject_file_lut.keys()),
+                                   files_for_subject=subject_file_lut)
 
     return render_template('upload/upload.html')
 
@@ -159,6 +161,7 @@ def check_images(timeout):
 
     subject_file_lut = utils.create_subject_file_lookup(files)
 
+    current_app.logger.info(f"Timeout {timeout}, all recons performed {all_recons_performed}.")
     current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
     return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
                            files_for_subject=subject_file_lut, reload=(all_recons_performed == False))
@@ -173,10 +176,18 @@ def submit():
             return redirect(url_for('upload.upload'))
         else:
 
+            # List of files which are not going to be submitted to the Open repo and will be deleted from the Vault
+            files_rejected = []
+
+            # First get all files which were not reconstructed
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
+                                              reconstructed=False, submitted=False).all()
+            files_rejected.extend(list_files)
+
+            # Now get files which were reconstructed but shall not be submitted
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
 
-            files_rejected = []
             for f in list_files:
                 if 'check_'+str(f.subject) not in request.form:
                     files_rejected.append(f)
@@ -187,22 +198,26 @@ def submit():
 
             db.session.commit()
 
+            # Finally get files which were reconstructed and should be submitted to the Open repo
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
-            files_accepted = []
+            files_submitted = []
             for f in list_files:
                 if 'check_'+str(f.subject) in request.form:
-                    files_accepted.append(f)
+                    files_submitted.append(f)
 
             # Add snapshots
-            xnat.add_snapshot_images(files_accepted)
+            xnat.add_snapshot_images(files_submitted)
 
             # Commit subjects to open project
-            xnat.commit_subjects_to_open(files_accepted)
+            xnat.commit_subjects_to_open(files_submitted)
 
-            for f in files_accepted:
+            for f in files_submitted:
                 f.submitted = True
 
             db.session.commit()
 
-        return render_template('home/thank_you.html', submitted_files=list_files)
+            subject_file_lut = utils.create_subject_file_lookup(files_submitted)
+
+        return render_template('home/thank_you.html', submitted_subjects=list(subject_file_lut.keys()),
+                               files_for_submitted_subject=subject_file_lut)

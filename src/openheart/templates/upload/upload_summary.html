@@ -15,14 +15,15 @@
 
     <div class="row align-items-center mt-5">
         <div class="col-6 offset-2">
-        {%for f in list_files %}
-            {% set subject = f.subject %}
-            {% set scan = f.name_orig %}
+        {% for sub in subjects %}
             <p class="lead">
-              {{subject}}
+              Subject {{sub}}
             </p>
             <ol>
-                <li>{{scan}}</li>
+            {%for f in files_for_subject[sub]%}
+                {% set scan = f.name_orig %}
+                <li>Scan {{scan}}</li>
+            {%endfor%}
             </ol>
         {%endfor%}
         </div>
