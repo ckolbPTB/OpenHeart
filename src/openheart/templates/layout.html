@@ -93,11 +93,13 @@
     <script src="js/popper.min.js"></script>
     <script>
     $(document).ready(function(){
-        $('[data-toggle="popover"]').popover({
-            placement : 'top',
-            trigger : 'hover',
+        $('[data-toggle="popover_zip"]').popover({
+            placement : 'right',
+            trigger : 'focus',
+            width : 'auto',
+            container : 'body',
             html : true,
-            content : '<div class="media"><img src="/static/logo_front.png" class="mr-3" alt="Sample Image"><div class="media-body"><h5 class="media-heading">Jhon Carter</h5><p>Excellent Bootstrap popover! I really love it.</p></div></div>'
+            content : '<div class="media"><img src="/static/zip_structure.png" width="250" class="d-inline-block align-top" alt=""></div>'
         });
     });
     </script>
