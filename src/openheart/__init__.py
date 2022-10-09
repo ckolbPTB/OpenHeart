@@ -1,9 +1,10 @@
 import logging
 import os
-from flask import Flask, redirect, url_for, g
+from flask import Flask, redirect, url_for, g, render_template
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.exceptions import HTTPException
 
 db = SQLAlchemy()
 mail = Mail()
@@ -23,7 +24,6 @@ def create_app(test_config=None):
         MAIL_USERNAME=os.environ.get('MAIL_USERNAME'),
         MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD'),
         DATA_FOLDER=os.environ.get('OH_DATA_PATH')+'/data/',
-        TEMP_FOLDER=os.environ.get('OH_DATA_PATH')+'/temp/',
         XNAT_SERVER=os.environ.get('XNAT_SERVER'),
         XNAT_ADMIN_USER=os.environ.get('XNAT_ADMIN_USER'),
         XNAT_ADMIN_PW=os.environ.get('XNAT_ADMIN_PW'),
@@ -67,6 +67,16 @@ def create_app(test_config=None):
     @login_manager.user_loader
     def load_user(userid):
         return User.query.get(userid)
+
+    @app.errorhandler(Exception)
+    def error_handler(e):
+        app.logger.error(f'The following error occured: {e}')
+        if isinstance(e, HTTPException):
+            return render_template("error/error.html", e=e)
+
+        # Handle non-HTTP exceptions only
+        return render_template("error/error.html", e=e), 500
+
 
     from . import home
     app.register_blueprint(home.bp)

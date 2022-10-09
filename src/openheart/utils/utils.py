@@ -44,7 +44,6 @@ def ismrmrd_2_xnat(ismrmrd_header):
     return(xnat_dict)
 
 
-
 def max99perc(dat):
     dat = np.sort(dat.flatten())
     return (dat[int(np.round(dat.shape[0] * 0.99))])
