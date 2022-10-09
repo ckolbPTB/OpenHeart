@@ -249,9 +249,14 @@ def clean_up_user_files(recreate_user_folders=False):
         oh_data_path_user = Path(current_app.config['DATA_FOLDER'] + user_folder)
         oh_app_path_user = Path(current_app.config['OH_APP_PATH'] + '/src/openheart/static/' + user_folder)
 
+        current_app.logger.debug(f'User {current_user.id}:')
+        current_app.logger.debug(f'     oh_data_path_user: {oh_data_path_user}')
+        current_app.logger.debug(f'     oh_app_path_user {oh_app_path_user}')
+
         # Remove animated gifs
         if Path.exists(oh_app_path_user):
             shutil.rmtree(oh_app_path_user)
+            current_app.logger.debug(f'     {oh_app_path_user} deleted')
 
         if Path.exists(oh_data_path_user):
             # Remove any files in oh_data_path_user from the database
@@ -260,20 +265,26 @@ def clean_up_user_files(recreate_user_folders=False):
                 user_file = File.query.filter_by(user_id=current_user.id, submitted=False, name_unique=str(f)).all()
                 for uf in user_file:
                     db.session.delete(uf)
+                    current_app.logger.debug(f'     {uf} removed from database')
 
                 user_file = File.query.filter_by(user_id=current_user.id, submitted=False, name=str(f)).all()
                 for uf in user_file:
                     db.session.delete(uf)
+                    current_app.logger.debug(f'     {uf} removed from database')
 
             db.session.commit()
 
             # Remove uploaded zip files, extracted raw files, downloaded dicom files,...
             shutil.rmtree(oh_data_path_user)
+            current_app.logger.debug(f'     {oh_data_path_user} deleted')
 
         # Create empty folders for user
         if recreate_user_folders:
             oh_data_path_user.mkdir()
+            current_app.logger.debug(f'     {oh_data_path_user} created')
+
             oh_app_path_user.mkdir()
+            current_app.logger.debug(f'     {oh_data_path_user} created')
 
     return(True)
 

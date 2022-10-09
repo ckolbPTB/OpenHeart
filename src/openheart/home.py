@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template
+    Blueprint, render_template, current_app
 )
 from openheart.utils.utils import clean_up_user_files
 

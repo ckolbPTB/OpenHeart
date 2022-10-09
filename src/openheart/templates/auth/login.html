@@ -14,10 +14,18 @@
                 <input type="email" class="form-control" name="UserEmail" id="UserEmail" aria-describedby="emailHelp" value={{user_email}}>
               </div>
                 <div class="form-group-lg">
-                <label for="UserToken">Security Token</label>
-                <input type="password" class="form-control" name="UserToken" id="UserToken" aria-describedby="passwordHelp" placeholder="Enter 5-digit token">
-                <small id="tokenHelp" class="form-text text-muted">Please enter the security token which you received via email.</small>
+                    <label for="UserToken">Security Token</label>
+                    <input type="password" class="form-control" name="UserToken" id="UserToken" aria-describedby="passwordHelp" placeholder="Enter 5-digit token">
                 </div>
+                <p>
+                    {% if err == 0 %}
+                        <small id="tokenHelp" class="form-text text-muted">Please enter the security token which you received via email.</small>
+                    {% elif err == 1 %}
+                        <small id="tokenHelpErrorEmail" class="form-text text-danger">The email address {{user_email}} was not recognised. Please try again with the correct email address and security token</small>
+                    {% else%}
+                        <small id="tokenHelpErrorToken" class="form-text text-danger">The security token did not match to the email address {{user_email}}. Please try again with the correct security token</small>
+                    {% endif %}
+                </p>
               <button type="submit" class="btn btn-danger">Login</button>
             </form>
         </div>

@@ -1,4 +1,5 @@
 import logging
+from logging.config import dictConfig
 import os
 from flask import Flask, redirect, url_for, g, render_template
 from flask_login import LoginManager
@@ -10,7 +11,8 @@ db = SQLAlchemy()
 mail = Mail()
 
 # this must be imported after db is created s.t. the database can pick up the tables form this file
-from openheart.database import User 
+from openheart.database import User
+from openheart.logging import log_dict_config
 
 
 def create_app(test_config=None):
@@ -35,8 +37,7 @@ def create_app(test_config=None):
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_pyfile('config.py', silent=True)
-        logging.basicConfig(filename=os.environ.get('OH_DATA_PATH')+'/logs/development.log', level=logging.DEBUG,
-                            format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+        dictConfig(log_dict_config)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
