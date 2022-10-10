@@ -11,7 +11,7 @@ class HTTPSlackHandler(logging.Handler):
     def emit(self, record):
         log_entry = self.format(record)
         json_text = json.dumps({"text": log_entry})
-        url = 'https://hooks.slack.com/services/<org_id>/<api_key>'
+        url = os.environ.get("OH_SLACK_HOOK")
         return requests.post(url, json_text, headers={"Content-type": "application/json"}).content
 
 
@@ -30,11 +30,11 @@ log_dict_config = {
             "formatter": "default",
             "stream": "ext://sys.stdout",
         },
-        #"slack": {
-        #    "class": "HTTPSlackHandler",
-        #    "formatter": "default",
-        #    "level": "ERROR",
-        #},
+        "slack": {
+           "class": "openheart.logger.HTTPSlackHandler",
+           "formatter": "default",
+           "level": "ERROR",
+        },
         "log_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
             "formatter": "default",
@@ -46,7 +46,6 @@ log_dict_config = {
     },
     "root": {
         "level": "DEBUG" if oh_debug else "INFO",
-        #"handlers": ["console"] if oh_debug else ["slack", "log_file"],
-        "handlers": ["console"] if oh_debug else ["log_file",],
+        "handlers": ["console"] if oh_debug else ["slack", "log_file"],
     }
 }

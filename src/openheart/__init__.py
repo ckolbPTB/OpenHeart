@@ -12,8 +12,7 @@ mail = Mail()
 
 # this must be imported after db is created s.t. the database can pick up the tables form this file
 from openheart.database import User
-from openheart.logging import log_dict_config
-
+import openheart.logger as logger
 
 def create_app(test_config=None):
     # create and configure the app
@@ -37,7 +36,7 @@ def create_app(test_config=None):
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_pyfile('config.py', silent=True)
-        dictConfig(log_dict_config)
+        dictConfig(logger.log_dict_config)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
@@ -48,11 +47,6 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
-
-    # a simple page that says hello
-    @app.route('/', methods=['GET'])
-    def welcome():
-        return redirect(url_for('home.welcome'))
 
     mail.init_app(app)
 
@@ -87,5 +81,10 @@ def create_app(test_config=None):
 
     from . import upload 
     app.register_blueprint(upload.bp)
+
+    # a simple page that says hello
+    @app.route('/', methods=['GET'])
+    def welcome():
+        return redirect(url_for('home.welcome'))
 
     return app

@@ -47,19 +47,20 @@ def login(email):
         current_app.logger.error(f'Email address was not found in database.')
         raise AssertionError(f"Could not look up the user with email = {email}.")
 
-    token = str(random.randrange(10000, 99999, 3))
-    token = str(11111)
+    if request.method == 'GET':
+        token = str(random.randrange(10000, 99999, 3))
+        token = str(11111)
 
-    user.set_token(token)
-    db.session.commit()
+        user.set_token(token)
+        db.session.commit()
 
-    # Email login token
-    msg = Message('Open Heart security token', sender=current_app.config['MAIL_USERNAME'], recipients=[email])
-    msg.body = f'Please enter the following security token on Open Heart: {token}'
-    print(msg.body)
-    # mail.send(msg)
+        # Email login token
+        msg = Message('Open Heart security token', sender=current_app.config['MAIL_USERNAME'], recipients=[email])
+        msg.body = f'Please enter the following security token on Open Heart: {token}'
+        print(msg.body)
+        # mail.send(msg)
 
-    if request.method == 'POST':
+    elif request.method == 'POST':
         # Get email address
         email = request.form['UserEmail']
 
@@ -81,12 +82,13 @@ def login(email):
 
 @bp.route('/logout')
 def logout():
+    curr_user_id = current_user.id
     utils.clean_up_user_files()
-    current_app.logger.info(f'Files for {current_user.id} cleaned up.')
+    current_app.logger.info(f'Files for {curr_user_id} cleaned up.')
 
     # Logout user
     logout_user()
-    current_app.logger.info(f'User {current_user.id} logged out.')
+    current_app.logger.info(f'User {curr_user_id} logged out.')
     return redirect('/')
 
 
