@@ -24,8 +24,8 @@ def register():
 
         # Remove user token from database if email is already present
         if not User.query.filter_by(email=email).first():
-            current_app.logger.info(f'Clear security token for user {current_user.id} in database.')
             user = User(email=email)
+            current_app.logger.info(f'Clear security token for user {user.id} in database.')
             user.set_token('00000')
 
             db.session.add(user)
