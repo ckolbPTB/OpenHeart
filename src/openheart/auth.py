@@ -44,7 +44,6 @@ def login(email):
 
     user = User.query.filter_by(email=email).first()
     if user is None:
-        current_app.logger.error(f'Email address was not found in database.')
         raise AssertionError(f"Could not look up the user with email = {email}.")
 
     if request.method == 'GET':
@@ -58,7 +57,7 @@ def login(email):
         msg = Message('Open Heart security token', sender=current_app.config['MAIL_USERNAME'], recipients=[email])
         msg.body = f'Please enter the following security token on Open Heart: {token}'
         print(msg.body)
-        # mail.send(msg)
+        mail.send(msg)
 
     elif request.method == 'POST':
         # Get email address
@@ -84,7 +83,7 @@ def login(email):
 def logout():
     curr_user_id = current_user.id
     utils.clean_up_user_files()
-    current_app.logger.info(f'Files for {curr_user_id} cleaned up.')
+    current_app.logger.info(f'Files for user {curr_user_id} cleaned up.')
 
     # Logout user
     logout_user()
