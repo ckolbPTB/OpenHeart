@@ -18,10 +18,18 @@ def get_xnat_connection() -> pyxnat.Interface:
     '''
     Establish a connetion to the XNAT server at current_app.config['XNAT_SERVER'] using the
     username current_app.config['XNAT_ADMIN_USER'] and the password current_app.config['XNAT_ADMIN_PW']
+
+    To verify the connection was successful, check that
         input: None
         output: pyxnat.Interface object
     '''
+    # Get connection to xnat server
     xnat_server = pyxnat.Interface(server=current_app.config['XNAT_SERVER'], user=current_app.config['XNAT_ADMIN_USER'], password=current_app.config['XNAT_ADMIN_PW'])
+
+    # Get all projects available on xnat server
+    projects = xnat_server.select.projects().get()
+    if len(projects) == 0:
+        raise ConnectionError('No projects on xnat server found. Is server running?')
     return xnat_server
 
 
@@ -129,9 +137,7 @@ def get_xnat_hdr_from_h5_file(filename_with_ext: str):
 def create_xnat_scan(xnat_project, scan_hdr, xnat_file_dict):
 
     subject_id, experiment_id, scan_id = get_ids_from_dict(xnat_file_dict)
-
     experiment_date = xnat_file_dict.get("experiment_date", "1900.01.01")
-
     xnat_subject = xnat_project.subject(subject_id)
 
     if xnat_subject.exists():
@@ -190,7 +196,6 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
     dicom uid is added as a xnat scan parameter.
     '''
     fpath_output = Path(fpath_output)
-
     scan = get_scan_from_project(xnat_project, *get_ids_from_dict(xnat_file_dict))
 
     if check_if_scan_was_reconstructed(scan):

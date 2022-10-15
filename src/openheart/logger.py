@@ -46,6 +46,6 @@ log_dict_config = {
     },
     "root": {
         "level": "DEBUG" if oh_debug else "INFO",
-        "handlers": ["console"] if oh_debug else ["slack", "log_file"],
+        "handlers": ["console", "log_file"] if oh_debug else ["slack", "log_file"],
     }
 }

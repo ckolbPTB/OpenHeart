@@ -12,8 +12,10 @@ class User(UserMixin, db.Model):
 
     def set_token(self, token):
         self.token_hash = generate_password_hash(token)
+        current_app.logger.info(f'Hash {self.token_hash} created from token.')
 
     def check_token(self, token):
+        current_app.logger.info('Verify security token.')
         return check_password_hash(self.token_hash, token)
 
     def __repr__(self):

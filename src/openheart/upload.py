@@ -1,5 +1,4 @@
-from flask import (
-    Blueprint, render_template, request, current_app, redirect, url_for, flash, g)
+from flask import Blueprint, render_template, request, current_app, redirect, url_for
 from flask_login import login_required, current_user
 
 from werkzeug.utils import secure_filename
@@ -15,7 +14,6 @@ from openheart.database import db, User, File
 
 bp = Blueprint('upload', __name__, url_prefix='/upload')
 
-
 @bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
@@ -28,21 +26,25 @@ def upload():
 def uploader():
     if request.method == 'POST':
         time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
+        current_app.logger.info(f'Current time ID created: {time_id}.')
 
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             # Get info from database
             user = User.query.get(current_user.id)
             user_folder = 'Uid' + str(current_user.id)
+            current_app.logger.info(f'Current user {current_user.id} with folder {user_folder}.')
 
             # Save file in upload folder
             f = request.files['file']
             filepath_out = Path(current_app.config['DATA_FOLDER']) / user_folder
             f_name = filepath_out / secure_filename(f"{user.id}_{f.filename}")
             f.save(str(f_name))
+            current_app.logger.info(f'File {f_name} saved.')
 
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
                 zip_info_list = zip.infolist()
+
                 # Go through list of files and folders and check for h5 files
                 for zip_info in zip_info_list:
                     if not zip_info.is_dir():
@@ -50,21 +52,30 @@ def uploader():
                         cpath, cfile = czip_content.parent, czip_content.name 
 
                         if utils.valid_extension(czip_content):
-
                             fname_out = f"user_{current_user.id}_subj_{cpath}_{cfile}"
                             zip_info.filename = str(fname_out)
                             zip.extract(zip_info, path=filepath_out)
+                            current_app.logger.info(f'File {zip_info.filename} extracted to {filepath_out}.')
 
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
                             file = File(user_id=current_user.id, name=str(filepath_out / fname_out),
                                         name_orig=str(cfile), name_unique="_", subject=str(cpath),
                                         subject_unique=subject_timed, format=czip_content.suffix)
+                            current_app.logger.info('File entry created:')
+                            current_app.logger.info(f'   user_id: {file.user_id}')
+                            current_app.logger.info(f'   name: {file.name}')
+                            current_app.logger.info(f'   name_orig: {file.name_orig}')
+                            current_app.logger.info(f'   name_unique: {file.name_unique}')
+                            current_app.logger.info(f'   subject: {file.subject}')
+                            current_app.logger.info(f'   subject_unique: {file.subject_unique}')
+                            current_app.logger.info(f'   format: {file.format}')
 
                             db.session.add(file)
                 db.session.commit()
 
             # Remove zip file
             os.remove(str(f_name))
+            current_app.logger.info(f'File {f_name} removed.')
 
             # Transform .dat to .h5 and rename .h5 with unique uid
             postprocess_upload()
@@ -75,6 +86,11 @@ def uploader():
 
             return render_template('upload/upload_summary.html', subjects=list(subject_file_lut.keys()),
                                    files_for_subject=subject_file_lut)
+        else:
+            if not request.files:
+                current_app.logger.warning('No file selected for upload.')
+            else:
+                current_app.logger.warning(f'File {request.files["file"].filename} selected for upload is not a zip file.')
 
     return render_template('upload/upload.html')
 
@@ -91,12 +107,13 @@ def convert_files():
 
     for file in list_files:
         fname_out = utils.convert_dat_file(file.name)
+        current_app.logger.info(f'File {file.name} converted to {fname_out}.')
+
         file = File(file)
-        file.name=fname_out
-        file.format='.h5'
+        file.name = fname_out
+        file.format = '.h5'
 
         db.session.add(file)
-
     db.session.commit()
 
     return True
@@ -110,6 +127,7 @@ def uniquely_identify_files():
         md5_identifier = utils.rename_h5_file(Path(file.name))
         file.name_unique = str(md5_identifier)
         db.session.commit()
+        current_app.logger.info(f'Unique filename {file.name_unique} for file {file.name} added.')
 
     return True
 
@@ -125,9 +143,8 @@ def check():
 
         if success:
             for f in list_files:
-                current_app.logger.info(f"Finished upload request to {f.xnat_subject_id}.")
-                current_app.logger.info(f"Finished upload request to {f.xnat_experiment_id}.")
-                current_app.logger.info(f"Finished upload request to {f.xnat_scan_id}.")
+                current_app.logger.info(f"Finished upload request of {f.name} to "
+                                        f"{f.xnat_subject_id} | {f.xnat_experiment_id} | {f.xnat_scan_id}.")
         else:
             raise AssertionError(f"Something with the xnat upload went wrong.")
 
@@ -149,6 +166,8 @@ def check_images(timeout):
     all_recons_performed = True
     if timeout == 0:
         for f in files:
+            current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} '
+                                    f'-> all_recons_performed: {all_recons_performed}.')
             all_recons_performed *= f.reconstructed
 
     subject_file_lut = utils.create_subject_file_lookup(files)
@@ -175,18 +194,27 @@ def submit():
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=False, submitted=False).all()
             files_rejected.extend(list_files)
+            current_app.logger.info('Files not reconstructed:')
+            for f in list_files:
+                current_app.logger.info(f'   {f.name}')
 
             # Now get files which were reconstructed but shall not be submitted
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
+
+            current_app.logger.info('Files reconstructed:')
+            for f in list_files:
+                current_app.logger.info(f'   {f.name}')
 
             for f in list_files:
                 if 'check_'+str(f.subject) not in request.form:
                     files_rejected.append(f)
 
             xnat.delete_scans_from_vault(files_rejected)
+            current_app.logger.info('Files rejected:')
             for f in files_rejected:
                 db.session.delete(f)
+                current_app.logger.info(f'   {f.name}')
 
             db.session.commit()
 
@@ -194,9 +222,11 @@ def submit():
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
             files_submitted = []
+            current_app.logger.info('Files to be submitted to Open repo:')
             for f in list_files:
-                if 'check_'+str(f.subject) in request.form:
+                if 'check_'+ str(f.subject) in request.form:
                     files_submitted.append(f)
+                    current_app.logger.info(f'   {f.name}')
 
             # Add snapshots
             xnat.add_snapshot_images(files_submitted)

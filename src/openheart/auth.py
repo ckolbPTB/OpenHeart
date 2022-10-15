@@ -1,16 +1,17 @@
-from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for, current_app
-)
-
+from flask import Blueprint, redirect, render_template, request, url_for, current_app
 from flask_mail import Message
 from flask_login import current_user, login_user, logout_user
 
+import os
 import random
 from openheart import mail
 from openheart.database import db, User
 from openheart.utils import utils
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+# Debug settings
+oh_debug = os.environ.get("OH_DEBUG").lower() == 'true'
 
 @bp.route('/register', methods=['POST', 'GET'])
 def register():
@@ -48,16 +49,21 @@ def login(email):
 
     if request.method == 'GET':
         token = str(random.randrange(10000, 99999, 3))
+
+        #if oh_debug:
         token = str(11111)
+
+        current_app.logger.info(f'Security token set to: {token}.')
 
         user.set_token(token)
         db.session.commit()
 
         # Email login token
-        msg = Message('Open Heart security token', sender=current_app.config['MAIL_USERNAME'], recipients=[email])
-        msg.body = f'Please enter the following security token on Open Heart: {token}'
-        print(msg.body)
-        mail.send(msg)
+        if not oh_debug:
+            msg = Message('Open Heart security token', sender=current_app.config['MAIL_USERNAME'], recipients=[email])
+            msg.body = f'Please enter the following security token on Open Heart: {token}'
+            current_app.logger.info(f'Email sent with: \n {msg.body}')
+            mail.send(msg)
 
     elif request.method == 'POST':
         # Get email address
