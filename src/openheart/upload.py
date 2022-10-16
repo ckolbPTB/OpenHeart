@@ -136,21 +136,24 @@ def uniquely_identify_files():
 @login_required
 def check():
     if request.method == "POST":
-        list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False).all()
-
-        success = xnat.upload_raw_mr_to_vault(list_files)
-        current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
-
-        if success:
-            for f in list_files:
-                current_app.logger.info(f"Finished upload request of {f.name} to "
-                                        f"{f.xnat_subject_id} | {f.xnat_experiment_id} | {f.xnat_scan_id}.")
+        if 'cancel' in request.form:
+            return redirect(url_for('upload.upload'))
         else:
-            raise AssertionError(f"Something with the xnat upload went wrong.")
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False).all()
 
-        db.session.commit()
+            success = xnat.upload_raw_mr_to_vault(list_files)
+            current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
 
-        return render_template('upload/check.html')
+            if success:
+                for f in list_files:
+                    current_app.logger.info(f"Finished upload request of {f.name} to "
+                                            f"{f.xnat_subject_id} | {f.xnat_experiment_id} | {f.xnat_scan_id}.")
+            else:
+                raise AssertionError(f"Something with the xnat upload went wrong.")
+
+            db.session.commit()
+
+            return render_template('upload/check.html')
     return render_template('upload/check.html')
 
 
