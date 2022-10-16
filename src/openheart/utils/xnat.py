@@ -29,7 +29,7 @@ def get_xnat_connection() -> pyxnat.Interface:
     # Get all projects available on xnat server
     projects = xnat_server.select.projects().get()
     if len(projects) == 0:
-        raise ConnectionError('No projects on xnat server found. Is server running?')
+        raise ConnectionError('No projects on xnat server found. Is the server running?')
     return xnat_server
 
 
