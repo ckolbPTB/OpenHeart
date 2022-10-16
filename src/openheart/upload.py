@@ -166,17 +166,20 @@ def check_images(timeout):
     all_recons_performed = True
     if timeout == 0:
         for f in files:
+            all_recons_performed *= f.reconstructed
             current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} '
                                     f'-> all_recons_performed: {all_recons_performed}.')
-            all_recons_performed *= f.reconstructed
 
     subject_file_lut = utils.create_subject_file_lookup(files)
 
-    current_app.logger.info(f"Timeout {timeout}, all recons performed {all_recons_performed}.")
-    current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
+    current_app.logger.info(f'Timeout {timeout}, all recons performed {all_recons_performed}.')
+    current_app.logger.info('We will try to render:')
+    for subj in subject_file_lut:
+        current_app.logger.info(f'   Subject - {subj}')
+        for scan in subject_file_lut[subj]:
+            current_app.logger.info(f'      {scan.name}')
     return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
-                           files_for_subject=subject_file_lut, reload=(all_recons_performed == False))
-
+                           files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
 
 
 @bp.route('/submit', methods=['GET', 'POST'])
@@ -222,7 +225,7 @@ def submit():
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
             files_submitted = []
-            current_app.logger.info('Files to be submitted to Open repo:')
+            current_app.logger.info('Files to be submitted to open project:')
             for f in list_files:
                 if 'check_'+ str(f.subject) in request.form:
                     files_submitted.append(f)

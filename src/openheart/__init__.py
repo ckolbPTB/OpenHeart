@@ -64,14 +64,14 @@ def create_app(test_config=None):
     def load_user(userid):
         return User.query.get(userid)
 
-    @app.errorhandler(Exception)
-    def error_handler(e):
-        app.logger.error(f'The following error occured: {e}', exc_info=True)
-        if isinstance(e, HTTPException):
-            return render_template("error/error.html", e=e)
-
-        # Handle non-HTTP exceptions only
-        return render_template("error/error.html", e=e), 500
+    # @app.errorhandler(Exception)
+    # def error_handler(e):
+    #     app.logger.error(f'The following error occured: {e}', exc_info=True)
+    #     if isinstance(e, HTTPException):
+    #         return render_template("error/error.html", e=e)
+    #
+    #     # Handle non-HTTP exceptions only
+    #     return render_template("error/error.html", e=e), 500
 
     from . import home
     app.register_blueprint(home.bp)

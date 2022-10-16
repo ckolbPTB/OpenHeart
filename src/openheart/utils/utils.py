@@ -289,9 +289,9 @@ def clean_up_user_files(recreate_user_folders=False):
             current_app.logger.info(f'   {oh_data_path_user} created')
 
             oh_app_path_user.mkdir()
-            current_app.logger.info(f'   {oh_data_path_user} created')
+            current_app.logger.info(f'   {oh_app_path_user} created')
 
-    return(True)
+    return True
 
 def create_subject_file_lookup(list_files):
 

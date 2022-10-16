@@ -45,7 +45,10 @@ def get_xnat_project(xnat_server: pyxnat.Interface, name_project: str):
     xnat_project = xnat_server.select.project(current_app.config[name_project])
 
     if not xnat_project.exists():
+        xnat_server.disconnect()
         raise NameError(f'Project {current_app.config[name_project]} not available on server.')
+    else:
+        current_app.logger.info(f'Project {name_project} found on xnat server.')
 
     return xnat_project
 
@@ -64,7 +67,7 @@ def upload_raw_mr_to_vault(list_files:list):
 
 def set_xnat_ids_in_files(list_files: list) -> list:
     '''
-    Preparing the database.File objects by setting appropriate experiment_id and scan_id
+    Preparing the database. File objects by setting appropriate experiment_id and scan_id
     input:
         list of database.File objects
     output:
@@ -80,6 +83,11 @@ def set_xnat_ids_in_files(list_files: list) -> list:
         f.xnat_experiment_id = experiment_id
         f.xnat_scan_id = scan_id
 
+        current_app.logger.info(f'Xnat parameters for {f.name}:')
+        current_app.logger.info(f'   subject_id: {f.xnat_subject_id}')
+        current_app.logger.info(f'   experiment_id: {f.xnat_experiment_id}')
+        current_app.logger.info(f'   scan_id: {f.xnat_scan_id}')
+
     return list_files
 
 
@@ -92,16 +100,9 @@ def upload_raw_mr(list_files: list, project_name: str):
     output:
         Boolean if upload was successful
     '''
-    #
     experiment_date = datetime.utcnow().strftime('%Y-%m-%d')
     xnat_server = get_xnat_connection()
-
-    try:
-        xnat_project = get_xnat_project(xnat_server, project_name)
-    except NameError as e:
-        current_app.logger.error(f"Accessing the project {project_name} failed. \n The error is {e}.")
-        xnat_server.disconnect()
-        return False
+    xnat_project = get_xnat_project(xnat_server, project_name)
 
     list_files = set_xnat_ids_in_files(list_files)
     list_xnat_dicts = get_xnat_dicts_from_file_list(list_files)
@@ -114,7 +115,7 @@ def upload_raw_mr(list_files: list, project_name: str):
         upload_rawdata_file_to_scan(xnat_project, xnat_dict, [f.name_unique])
         f.transmitted =  True
 
-    current_app.logger.info(f"Finished uploading of of data to xnat. Disconnecting...")
+    current_app.logger.info('Finished uploading of of data to xnat. Disconnecting xnat server.')
     xnat_server.disconnect()
 
     return True
@@ -124,12 +125,13 @@ def get_xnat_hdr_from_h5_file(filename_with_ext: str):
     '''
     Auxiliary function to fill XNAT file header from an ISMRMRD rawdata file
         input: full filename of ISMRMRD rawdata
-        output: dict containing keys describing an xnat:mrScanData file
+        output: dict containing keys describing a xnat:mrScanData file
     '''
     dset = ismrmrd.Dataset(filename_with_ext, 'dataset', create_if_needed=False)
     header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
     xnat_hdr = utils.ismrmrd_2_xnat(header)
     dset.close()
+    current_app.logger.info(f'Xnat file header extracted from {filename_with_ext}.')
 
     return xnat_hdr
 
@@ -141,23 +143,23 @@ def create_xnat_scan(xnat_project, scan_hdr, xnat_file_dict):
     xnat_subject = xnat_project.subject(subject_id)
 
     if xnat_subject.exists():
-        current_app.logger.warning(f'Subject {subject_id} already exists.')
+        current_app.logger.info(f'Subject {subject_id} already exists.')
 
     experiment = xnat_subject.experiment(experiment_id)
 
-    if not experiment.exists():
-        experiment.create(
-            **{'experiments': 'xnat:mrSessionData',
-                'xnat:mrSessionData/date': experiment_date})
+    if experiment.exists():
+        current_app.logger.info(f'Experiment {experiment_id} already exists.')
+    else:
+        experiment.create(**{'experiments': 'xnat:mrSessionData', 'xnat:mrSessionData/date': experiment_date})
+        current_app.logger.info(f'Experiment {experiment_id} created in {subject_id}.')
 
     scan = experiment.scan(scan_id)
 
     if scan.exists():
-        current_app.logger.error(f'Scan {scan_id} in experiment {experiment_id} in subject {subject_id} already exists.')
-        raise NameError(f"The scan {scan_id} already exists for subject {subject_id} and experiment {experiment_id}")
+        raise NameError(f'The scan {scan_id} already exists for subject {subject_id} and experiment {experiment_id}.')
     else:
         scan.create(**scan_hdr)
-        current_app.logger.info(f"We created the subject {subject_id} / {experiment_id} / {scan_id}")
+        current_app.logger.info(f'Scan {scan_id} created in {subject_id} | {experiment_id}')
 
     return True
 
@@ -172,6 +174,7 @@ def get_ids_from_dict(xnat_file_dict: dict):
     subject_id = xnat_file_dict["subject_id"]
     experiment_id = xnat_file_dict["experiment_id"]
     scan_id = xnat_file_dict["scan_id"]
+    current_app.logger.info(f'Extracted: {subject_id} | {experiment_id} | {scan_id}')
 
     return subject_id, experiment_id, scan_id
 
@@ -182,8 +185,9 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
 
     scan = get_scan_from_project(xnat_project, subject_id, experiment_id, scan_id)
     scan_resource = scan.resource('MR_RAW')
-    current_app.logger.info(f"Started upload of {list_filenames_rawdata} to Subj {subject_id}/Exp {experiment_id}/Scan {scan_id}")
+    current_app.logger.info(f'Started upload of {list_filenames_rawdata} to {subject_id} | {experiment_id} | {scan_id}.')
     scan_resource.put(list_filenames_rawdata, format='HDF5', label='MR_RAW', content='RAW', **{'xsi:type': 'xnat:mrScanData'})
+    current_app.logger.info(f'Upload of {list_filenames_rawdata} finished.')
 
     return True, scan
 
@@ -202,6 +206,7 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
         # Download dicom
         try:
+            current_app.logger.info(f'Trying to download dicom files for {scan}.')
             fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
 
             # Extract zip file
@@ -211,12 +216,14 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
                 # Update scan uid with (0020,000E) 	Series Instance UID
                 dcm_header = utils.get_dicom_header(fpath_output)
                 scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
+                current_app.logger.info(f'Dicom UID updated to {str(dcm_header[0][0x0020, 0x000e].value)}.')
 
             delete_files_from_path(fpath_output, {".zip"})
+            current_app.logger.info(f'Dicom files successfully downloaded.')
             return True
 
         except Exception as e:
-            current_app.logger.error(f"Downloading reconstructed dicom images failed. \n The error is: {e}")
+            current_app.logger.info(f'Downloading reconstructed dicom images failed: {e}.')
             return False
     else:
         return False
@@ -226,14 +233,14 @@ def create_gif_from_downloaded_recon(fpath_dicoms:Path, filename_output_with_ext
 
     # Create gif
     utils.create_qc_gif(fpath_dicoms, filename_output_with_ext)
-
-    current_app.logger.info(f'Quality control image {filename_output_with_ext} created')
+    current_app.logger.info(f'Quality control image {filename_output_with_ext} created.')
     delete_files_from_path(Path(fpath_dicoms), {".dcm"})
 
     return True
 
 
 def delete_files_from_path(fpath, list_extensions):
+
     files_to_remove = list(chain.from_iterable([sorted(fpath.glob(f"*{ext}")) for ext in list_extensions]))
     for f in files_to_remove:
         os.remove(str(f))
@@ -249,7 +256,9 @@ def share_list_of_scans(xnat_server, list_xnat_dicts):
     lookup_subject_experiments = create_subject_experiment_lookup(xnat_vault, list_xnat_dicts)
 
     for subj in lookup_subject_experiments:
-        share_subjects_and_experiments(xnat_vault, xnat_open, name_xnat_dst_project, subj, lookup_subject_experiments[subj])
+        share_subjects_and_experiments(xnat_vault, xnat_open, name_xnat_dst_project, subj,
+                                       lookup_subject_experiments[subj])
+        current_app.logger.info(f'Subject {subj} shared with open xnat project.')
 
     return True
 
@@ -268,7 +277,6 @@ def create_subject_experiment_lookup(project, list_xnat_dicts):
     for xd in list_xnat_dicts:
         sid = xd["subject_id"]
         list_subjects.append(sid)
-
         get_scan_from_project(project, sid, xd["experiment_id"], xd["scan_id"])
 
     list_subjects = set(list_subjects)
@@ -295,7 +303,7 @@ def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_proje
     if not dst_project.exists():
         raise NameError(f'Project {dst_project} not available on server.')
 
-    current_app.logger.info(f"Trying to share into project {name_xnat_dst_project}")
+    current_app.logger.info(f'Trying to share into project {name_xnat_dst_project}')
 
     xnat_subject = src_project.subject(subject_id)
 
@@ -306,7 +314,7 @@ def share_subjects_and_experiments(src_project, dst_project, name_xnat_dst_proje
             cexp.share(name_xnat_dst_project, primary=primary)
         xnat_subject.share(name_xnat_dst_project, primary=primary)
     else:
-        current_app.logger.warning(f"The destination project already contains a subject with the id {subject_id}. Skipping the sharing to destination project.")
+        current_app.logger.error(f'The destination project already contains a subject with the id {subject_id}. Skipping the sharing to destination project.')
 
     return True
 
@@ -317,8 +325,8 @@ def download_dcm_images(file_list):
     xnat_server = get_xnat_connection()
     list_xnat_dicts = get_xnat_dicts_from_file_list(file_list)
     xnat_project = get_xnat_vault_project(xnat_server)
-    for xnd, f in zip(list_xnat_dicts, file_list):
 
+    for xnd, f in zip(list_xnat_dicts, file_list):
         create_gif_for_file(xnat_project, xnd, f)
 
     xnat_server.disconnect()
@@ -358,7 +366,7 @@ def check_if_scan_was_reconstructed(scan):
     if scan.resource('DICOM').exists():
         return True
     else:
-         return False
+        return False
 
 
 def get_xnat_dicts_from_file_list(list_files):
@@ -425,11 +433,12 @@ def add_snapshot_images(list_files_to_commit):
         scan = get_scan_from_project(xnat_vault, *get_ids_from_dict(xnd))
 
         scan_resource = scan.resource('SNAPSHOTS')
-        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot_t.gif'), ],
-                          format='gif', content='THUMBNAIL')
-        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot.gif'), ],
-                          format='gif', content='ORIGINAL')
-
+        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot_t.gif'), ], format='gif',
+                          content='THUMBNAIL')
+        current_app.logger.info(f'Snapshot animation_file_{f.id}_snapshot_t.gif added to scan {scan}.')
+        scan_resource.put([str(filepath_output / f'animation_file_{f.id}_snapshot.gif'), ], format='gif',
+                          content='ORIGINAL')
+        current_app.logger.info(f'Snapshot animation_file_{f.id}_snapshot.gif added to scan {scan}.')
     xnat_server.disconnect()
 
 
@@ -450,7 +459,6 @@ def delete_scans_from_vault(list_files_to_delete: list):
     input: list of database.File objects
     output: True
     '''
-
     # Connect to server
     xnat_server = get_xnat_connection()
     xnat_vault = get_xnat_vault_project(xnat_server)
@@ -463,8 +471,9 @@ def delete_scans_from_vault(list_files_to_delete: list):
         try:
             subject = get_xnat_subject(xnat_vault, subj)
             subject.delete()
-        except NameError as e:
-            current_app.logger.error(f"Deleting of subject with id {subj} failed. \n The error is: {e}")
+            current_app.logger.info(f'Subject {subj} removed from vault project.')
+        except Exception as e:
+            raise NameError(f'Deleting of subject with id {subj} failed. \n The error is: {e}')
 
     xnat_server.disconnect()
 
