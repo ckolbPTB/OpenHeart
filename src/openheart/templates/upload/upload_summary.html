@@ -15,31 +15,30 @@
 
     <div class="row align-items-center mt-5">
         <div class="col-6 offset-2">
-        {%for f in list_files %}
-            {% set subject = f.subject %}
-            {% set scan = f.name_orig %}
+        {% for sub in subjects %}
             <p class="lead">
-              {{subject}}
+              Subject {{sub}}
             </p>
             <ol>
-                <li>{{scan}}</li>
+            {%for f in files_for_subject[sub]%}
+                {% set scan = f.name_orig %}
+                <li>Scan {{scan}}</li>
+            {%endfor%}
             </ol>
         {%endfor%}
         </div>
     </div>
 
-    <div class="row align-items-center mt-5">
-         <div class="col-5 offset-2">
-             <form method="post" action="{{url_for("upload.check")}}">
-                <button type="submit" class="btn btn-danger">Upload</button>
-             </form>
+    <form method="post" action="{{url_for("upload.check")}}">
+        <div class="row align-items-center mt-5">
+            <div class="col-5 offset-2">
+                <button type="submit" name="upload" class="btn btn-danger">Upload</button>
+            </div>
+             <div class="col-2">
+                <button type="submit" name="cancel" class="btn btn-light">Cancel</button>
+            </div>
         </div>
-        <div class="col-2">
-            <form method="get" action="{{url_for("upload.upload")}}>
-                <button type="submit" class="btn btn-light">Cancel</button>
-            </form>
-         </div>
-  </div>
+    </form>
 </div>
 
 {% endblock %}

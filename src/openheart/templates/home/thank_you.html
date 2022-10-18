@@ -9,16 +9,21 @@
         </div>
         <div class="col-6 align-top">
             <p class="lead">
-              Thank you very much for contributing these data sets to Open Heart:
+                {%if submitted_subjects|length > 0%}
+                    Thank you very much for contributing these data sets to Open Heart:
+                {% else %}
+                    We are sorry that you did not select any data to be contributed to Open Heart. Hopefully next time!
+                {% endif %}
             </p>
-            {%for f in submitted_files %}
-                {% set subject = f.subject %}
-                {% set scan = f.name_orig %}
+            {% for sub in submitted_subjects %}
                 <p class="lead">
-                  {{subject}}
+                  Subject {{sub}}
                 </p>
                 <ol>
-                    <li>{{scan}}</li>
+                {%for f in files_for_submitted_subject[sub]%}
+                    {% set scan = f.name_orig %}
+                    <li>Scan {{scan}}</li>
+                {%endfor%}
                 </ol>
             {%endfor%}
         </div>

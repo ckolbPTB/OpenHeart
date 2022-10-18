@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+{% block title %} Error {% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row align-items-center">
+        <div class="col-3 offset-1">
+            <img src="/static/logo_error.png" class="img-fluid" alt="Logo error" width="200">
+        </div>
+        <div class="col-6 align-top mt-5">
+            <p class="lead">
+              Unfortunately the following error occured: {{e.code}} - {{e.name}}
+            </p>
+            <p>
+              {{e.description}}
+            </p>
+            <p>
+              The best thing is to try again. If you think you ran into a bug, then please add an issue at
+                <a href="https://github.com/ckolbPTB/OpenHeart" target="blank" class="link-danger">https://github.com/ckolbPTB/OpenHeart</a>
+                or contact the admin team.
+            </p>
+
+            <form action={{url_for("home.welcome")}} method = "GET">
+              <button type="submit" class="btn btn-danger">Start again</button>
+            </form>
+        </div>
+  </div>
+</div>
+{% endblock %}

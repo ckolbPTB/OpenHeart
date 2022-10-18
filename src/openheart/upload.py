@@ -1,5 +1,4 @@
-from flask import (
-    Blueprint, render_template, request, current_app, redirect, url_for, flash, g)
+from flask import Blueprint, render_template, request, current_app, redirect, url_for
 from flask_login import login_required, current_user
 
 from werkzeug.utils import secure_filename
@@ -15,7 +14,6 @@ from openheart.database import db, User, File
 
 bp = Blueprint('upload', __name__, url_prefix='/upload')
 
-
 @bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
@@ -28,21 +26,25 @@ def upload():
 def uploader():
     if request.method == 'POST':
         time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
+        current_app.logger.info(f'Current time ID created: {time_id}.')
 
         if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
             # Get info from database
             user = User.query.get(current_user.id)
             user_folder = 'Uid' + str(current_user.id)
+            current_app.logger.info(f'Current user {current_user.id} with folder {user_folder}.')
 
             # Save file in upload folder
             f = request.files['file']
             filepath_out = Path(current_app.config['DATA_FOLDER']) / user_folder
             f_name = filepath_out / secure_filename(f"{user.id}_{f.filename}")
             f.save(str(f_name))
+            current_app.logger.info(f'File {f_name} saved.')
 
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
                 zip_info_list = zip.infolist()
+
                 # Go through list of files and folders and check for h5 files
                 for zip_info in zip_info_list:
                     if not zip_info.is_dir():
@@ -50,33 +52,45 @@ def uploader():
                         cpath, cfile = czip_content.parent, czip_content.name 
 
                         if utils.valid_extension(czip_content):
-
                             fname_out = f"user_{current_user.id}_subj_{cpath}_{cfile}"
                             zip_info.filename = str(fname_out)
                             zip.extract(zip_info, path=filepath_out)
+                            current_app.logger.info(f'File {zip_info.filename} extracted to {filepath_out}.')
 
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
-                            file = File(user_id=current_user.id, 
-                                        name=str(filepath_out / fname_out),
-                                        name_orig=str(cfile),
-                                        name_unique="_", 
-                                        subject=str(cpath),
-                                        subject_unique=subject_timed,
-                                        format=czip_content.suffix)
+                            file = File(user_id=current_user.id, name=str(filepath_out / fname_out),
+                                        name_orig=str(cfile), name_unique="_", subject=str(cpath),
+                                        subject_unique=subject_timed, format=czip_content.suffix)
+                            current_app.logger.info('File entry created:')
+                            current_app.logger.info(f'   user_id: {file.user_id}')
+                            current_app.logger.info(f'   name: {file.name}')
+                            current_app.logger.info(f'   name_orig: {file.name_orig}')
+                            current_app.logger.info(f'   name_unique: {file.name_unique}')
+                            current_app.logger.info(f'   subject: {file.subject}')
+                            current_app.logger.info(f'   subject_unique: {file.subject_unique}')
+                            current_app.logger.info(f'   format: {file.format}')
 
                             db.session.add(file)
                 db.session.commit()
 
             # Remove zip file
             os.remove(str(f_name))
+            current_app.logger.info(f'File {f_name} removed.')
 
             # Transform .dat to .h5 and rename .h5 with unique uid
             postprocess_upload()
 
-            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                              transmitted=False, reconstructed=False).all()
+            files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False,
+                                         reconstructed=False).all()
+            subject_file_lut = utils.create_subject_file_lookup(files)
 
-            return render_template('upload/upload_summary.html', list_files=list_files)
+            return render_template('upload/upload_summary.html', subjects=list(subject_file_lut.keys()),
+                                   files_for_subject=subject_file_lut)
+        else:
+            if not request.files:
+                current_app.logger.warning('No file selected for upload.')
+            else:
+                current_app.logger.warning(f'File {request.files["file"].filename} selected for upload is not a zip file.')
 
     return render_template('upload/upload.html')
 
@@ -88,32 +102,32 @@ def postprocess_upload():
 
 @login_required
 def convert_files():
-    list_files = File.query.filter_by(user_id=current_user.id, format='.dat', 
-                                      transmitted=False, reconstructed=False).all()
+    list_files = File.query.filter_by(user_id=current_user.id, format='.dat', transmitted=False,
+                                      reconstructed=False).all()
 
     for file in list_files:
         fname_out = utils.convert_dat_file(file.name)
+        current_app.logger.info(f'File {file.name} converted to {fname_out}.')
+
         file = File(file)
-        file.name=fname_out
-        file.format='.h5'
+        file.name = fname_out
+        file.format = '.h5'
 
         db.session.add(file)
-
     db.session.commit()
 
     return True
 
 
 def uniquely_identify_files():
-    list_files = File.query.filter_by(user_id=current_user.id,
-                                      name_unique = "_",
-                                      format='.h5', 
-                                      transmitted=False, reconstructed=False).all()
+    list_files = File.query.filter_by(user_id=current_user.id, name_unique = "_", format='.h5', transmitted=False,
+                                      reconstructed=False).all()
 
     for file in list_files:
         md5_identifier = utils.rename_h5_file(Path(file.name))
         file.name_unique = str(md5_identifier)
         db.session.commit()
+        current_app.logger.info(f'Unique filename {file.name_unique} for file {file.name} added.')
 
     return True
 
@@ -122,46 +136,53 @@ def uniquely_identify_files():
 @login_required
 def check():
     if request.method == "POST":
-        list_files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                          transmitted=False).all()
-
-        success = xnat.upload_raw_mr_to_vault(list_files)
-        current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
-
-        if success:
-            for f in list_files:
-                current_app.logger.info(f"Finished upload request to {f.xnat_subject_id}.")
-                current_app.logger.info(f"Finished upload request to {f.xnat_experiment_id}.")
-                current_app.logger.info(f"Finished upload request to {f.xnat_scan_id}.")
+        if 'cancel' in request.form:
+            return redirect(url_for('upload.upload'))
         else:
-            raise AssertionError(f"Something with the xnat upload went wrong.")
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False).all()
 
-        db.session.commit()
+            success = xnat.upload_raw_mr_to_vault(list_files)
+            current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
 
-        return render_template('upload/check.html')
+            if success:
+                for f in list_files:
+                    current_app.logger.info(f"Finished upload request of {f.name} to "
+                                            f"{f.xnat_subject_id} | {f.xnat_experiment_id} | {f.xnat_scan_id}.")
+            else:
+                raise AssertionError(f"Something with the xnat upload went wrong.")
+
+            db.session.commit()
+
+            return render_template('upload/check.html')
     return render_template('upload/check.html')
 
 
-@bp.route('/check_images', methods=['GET', 'POST'])
+@bp.route('/check_images/<int:timeout>', methods=['GET', 'POST'])
 @login_required
-def check_images():
+def check_images(timeout):
 
-    files = File.query.filter_by(user_id=current_user.id, format='.h5', 
-                                 transmitted=True, submitted=False).all()
+    files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True, submitted=False).all()
 
     files = xnat.download_dcm_images(files)
     db.session.commit()
 
     all_recons_performed = True
-    for f in files:
-        all_recons_performed *= f.reconstructed
+    if timeout == 0:
+        for f in files:
+            all_recons_performed *= f.reconstructed
+            current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} '
+                                    f'-> all_recons_performed: {all_recons_performed}.')
 
     subject_file_lut = utils.create_subject_file_lookup(files)
 
-    current_app.logger.info(f"We will try to render {list(subject_file_lut.keys())} and {subject_file_lut}.")
+    current_app.logger.info(f'Timeout {timeout}, all recons performed {all_recons_performed}.')
+    current_app.logger.info('We will try to render:')
+    for subj in subject_file_lut:
+        current_app.logger.info(f'   Subject - {subj}')
+        for scan in subject_file_lut[subj]:
+            current_app.logger.info(f'      {scan.name}')
     return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
-                           files_for_subject=subject_file_lut, reload=(all_recons_performed == False))
-
+                           files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
 
 
 @bp.route('/submit', methods=['GET', 'POST'])
@@ -172,36 +193,59 @@ def submit():
             return redirect(url_for('upload.upload'))
         else:
 
+            # List of files which are not going to be submitted to the Open repo and will be deleted from the Vault
+            files_rejected = []
+
+            # First get all files which were not reconstructed
+            list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
+                                              reconstructed=False, submitted=False).all()
+            files_rejected.extend(list_files)
+            current_app.logger.info('Files not reconstructed:')
+            for f in list_files:
+                current_app.logger.info(f'   {f.name}')
+
+            # Now get files which were reconstructed but shall not be submitted
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
 
-            files_rejected = []
+            current_app.logger.info('Files reconstructed:')
+            for f in list_files:
+                current_app.logger.info(f'   {f.name}')
+
             for f in list_files:
                 if 'check_'+str(f.subject) not in request.form:
                     files_rejected.append(f)
 
             xnat.delete_scans_from_vault(files_rejected)
+            current_app.logger.info('Files rejected:')
             for f in files_rejected:
                 db.session.delete(f)
+                current_app.logger.info(f'   {f.name}')
 
             db.session.commit()
 
+            # Finally get files which were reconstructed and should be submitted to the Open repo
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True,
                                               reconstructed=True, submitted=False).all()
-            files_accepted = []
+            files_submitted = []
+            current_app.logger.info('Files to be submitted to open project:')
             for f in list_files:
-                if 'check_'+str(f.subject) in request.form:
-                    files_accepted.append(f)
+                if 'check_'+ str(f.subject) in request.form:
+                    files_submitted.append(f)
+                    current_app.logger.info(f'   {f.name}')
 
             # Add snapshots
-            xnat.add_snapshot_images(files_accepted)
+            xnat.add_snapshot_images(files_submitted)
 
             # Commit subjects to open project
-            xnat.commit_subjects_to_open(files_accepted)
+            xnat.commit_subjects_to_open(files_submitted)
 
-            for f in files_accepted:
+            for f in files_submitted:
                 f.submitted = True
 
             db.session.commit()
 
-        return render_template('home/thank_you.html', submitted_files=list_files)
+            subject_file_lut = utils.create_subject_file_lookup(files_submitted)
+
+        return render_template('home/thank_you.html', submitted_subjects=list(subject_file_lut.keys()),
+                               files_for_submitted_subject=subject_file_lut)

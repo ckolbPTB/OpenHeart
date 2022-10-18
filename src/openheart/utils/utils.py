@@ -44,7 +44,6 @@ def ismrmrd_2_xnat(ismrmrd_header):
     return(xnat_dict)
 
 
-
 def max99perc(dat):
     dat = np.sort(dat.flatten())
     return (dat[int(np.round(dat.shape[0] * 0.99))])
@@ -66,9 +65,8 @@ def read_and_process_dicoms(dicom_path:Path):
         num_files: number of detected dicoms
     '''
     dcm_files = sorted(dicom_path.glob("*.dcm"))
-
     num_files = len(dcm_files)
-    current_app.logger.info(f"Currently we found {num_files} dicoms.")
+    current_app.logger.info(f'{num_files} dicom images found.')
 
     # Get header information for sorting
     sort_key_words = ['ImageNumber', 'EchoTime', 'SliceLocation']
@@ -89,10 +87,12 @@ def read_and_process_dicoms(dicom_path:Path):
     ds = ds[slice_idx,...]
     ds = np.moveaxis(ds, 0, -1)
     ds = np.reshape(ds, ds.shape[:2] + (-1,))
+    current_app.logger.info(f'Shape of dicom images: {ds.shape}.')
 
     # Number of slices
     slice_idx = sort_key_words.index('SliceLocation')
     num_slices = len(np.unique(sort_idx[slice_idx,:]))
+    current_app.logger.info(f'Number of slices: {num_slices}.')
 
     # Split into slices
     ds_slices = np.array_split(ds, num_slices, axis=2)
@@ -115,9 +115,10 @@ def get_dicom_header(dicom_path:Path):
     output:
         dicom headers of all files
     '''
-    assert dicom_path.exists(), f"The directory where the dicoms should be found does not exist."
+    assert dicom_path.exists(), f'Directory {str(dicom_path)} where the dicom images should be found does not exist.'
 
     dcm_files = sorted(dicom_path.glob("*.dcm"))
+    current_app.logger.info(f'{len(dcm_files)} dicom images found.')
     dcm_header = []
     for ind, f in enumerate(dcm_files):
         dcm_header.append(pydicom.dcmread(str(f), stop_before_pixels=True))
@@ -135,8 +136,9 @@ def create_qc_gif(dicom_path:Path, filename_output_with_ext:Path):
     output:
         None
     '''
-    assert dicom_path.exists(), f"The directory where the dicoms should be found does not exist."
-    assert filename_output_with_ext.parent.exists(), f"The directory {filename_output_with_ext.parent} into which the .gif should be stored does not exist."
+    assert dicom_path.exists(), f'Directory {str(dicom_path)} where the dicom images should be found does not exist.'
+    assert filename_output_with_ext.parent.exists(), f'Directory {filename_output_with_ext.parent} ' \
+                                                     f'where the .gif should be stored does not exist.'
 
     ds, ds_central_slice, ds_montage, num_files = read_and_process_dicoms(dicom_path)
 
@@ -177,7 +179,8 @@ def save_gif(im:np.array, fpath_output_with_ext:str, cmap='gray', min_max_val=[]
     for tnd in range(im_rgb.shape[2]):
         anim_im.append(im_rgb[:, :, tnd, :])
         dur.append(total_dur/im_rgb.shape[2])
-    imageio.mimsave(fpath_output_with_ext , anim_im, duration=dur)
+    imageio.mimsave(fpath_output_with_ext, anim_im, duration=dur)
+    current_app.logger.info(f'{fpath_output_with_ext} saved.')
 
     return None
 
@@ -228,7 +231,8 @@ def rename_h5_file(fname_file_with_ext:Path):
         current_app.logger.info(f"Trying to rename {fname_file_with_ext} into {cfile_name}.")
         fname_file_with_ext.rename(cfile_name)
     except FileExistsError:
-        current_app.logger.warning(f"You tried to rename {fname_file_with_ext} into {cfile_name}, but the latter alraedy exists. Ignoring request.")
+        current_app.logger.warning(f"You tried to rename {fname_file_with_ext} into {cfile_name}, "
+                                   f"but the latter already exists. Ignoring request.")
 
     return cfile_name
 
@@ -250,9 +254,14 @@ def clean_up_user_files(recreate_user_folders=False):
         oh_data_path_user = Path(current_app.config['DATA_FOLDER'] + user_folder)
         oh_app_path_user = Path(current_app.config['OH_APP_PATH'] + '/src/openheart/static/' + user_folder)
 
+        current_app.logger.debug(f'User {current_user.id}:')
+        current_app.logger.debug(f'   oh_data_path_user: {oh_data_path_user}')
+        current_app.logger.debug(f'   oh_app_path_user {oh_app_path_user}')
+
         # Remove animated gifs
         if Path.exists(oh_app_path_user):
             shutil.rmtree(oh_app_path_user)
+            current_app.logger.info(f'     {oh_app_path_user} deleted')
 
         if Path.exists(oh_data_path_user):
             # Remove any files in oh_data_path_user from the database
@@ -261,22 +270,28 @@ def clean_up_user_files(recreate_user_folders=False):
                 user_file = File.query.filter_by(user_id=current_user.id, submitted=False, name_unique=str(f)).all()
                 for uf in user_file:
                     db.session.delete(uf)
+                    current_app.logger.info(f'   {uf.name} removed from database')
 
                 user_file = File.query.filter_by(user_id=current_user.id, submitted=False, name=str(f)).all()
                 for uf in user_file:
                     db.session.delete(uf)
+                    current_app.logger.info(f'   {uf.name} removed from database')
 
             db.session.commit()
 
             # Remove uploaded zip files, extracted raw files, downloaded dicom files,...
             shutil.rmtree(oh_data_path_user)
+            current_app.logger.info(f'   {oh_data_path_user} deleted')
 
         # Create empty folders for user
         if recreate_user_folders:
             oh_data_path_user.mkdir()
-            oh_app_path_user.mkdir()
+            current_app.logger.info(f'   {oh_data_path_user} created')
 
-    return(True)
+            oh_app_path_user.mkdir()
+            current_app.logger.info(f'   {oh_app_path_user} created')
+
+    return True
 
 def create_subject_file_lookup(list_files):
 

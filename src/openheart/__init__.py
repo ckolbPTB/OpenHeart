@@ -1,29 +1,35 @@
 import logging
+from logging.config import dictConfig
 import os
-from flask import Flask, redirect, url_for, g
+from flask import Flask, redirect, url_for, g, render_template
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.exceptions import HTTPException
 
 db = SQLAlchemy()
 mail = Mail()
 
-# this must be imported after db is created s.t. the database can pick up the tables form this file
-from openheart.database import User 
+# Debug settings
+oh_debug = os.environ.get("OH_DEBUG").lower() == 'true'
 
+# This must be imported after db is created s.t. the database can pick up the tables form this file
+from openheart.database import User
+import openheart.logger as logger
 
 def create_app(test_config=None):
-    # create and configure the app
+    # Create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY='dev',
         SQLALCHEMY_DATABASE_URI='sqlite:///' + os.environ.get('OH_DATA_PATH') + '/db/open_heart.db',
         MAIL_SERVER='smtp.gmail.com',
         MAIL_PORT=465,
+        MAIL_USE_TSL=False,
+        MAIL_USE_SSL=True,
         MAIL_USERNAME=os.environ.get('MAIL_USERNAME'),
         MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD'),
         DATA_FOLDER=os.environ.get('OH_DATA_PATH')+'/data/',
-        TEMP_FOLDER=os.environ.get('OH_DATA_PATH')+'/temp/',
         XNAT_SERVER=os.environ.get('XNAT_SERVER'),
         XNAT_ADMIN_USER=os.environ.get('XNAT_ADMIN_USER'),
         XNAT_ADMIN_PW=os.environ.get('XNAT_ADMIN_PW'),
@@ -33,28 +39,22 @@ def create_app(test_config=None):
     )
 
     if test_config is None:
-        # load the instance config, if it exists, when not testing
+        # Load the instance config, if it exists, when not testing
         app.config.from_pyfile('config.py', silent=True)
-        logging.basicConfig(filename=os.environ.get('OH_DATA_PATH')+'/logs/development.log', level=logging.DEBUG)
+        dictConfig(logger.log_dict_config)
     else:
-        # load the test config if passed in
+        # Load the test config if passed in
         app.config.from_mapping(test_config)
 
-
-    # ensure the instance folder exists
+    # Ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
     except OSError:
         pass
 
-    # a simple page that says hello
-    @app.route('/', methods=['GET'])
-    def welcome():
-        return redirect(url_for('home.welcome'))
-
     mail.init_app(app)
 
-    # initialize the database onto the app
+    # Initialize the database onto the app
     db.init_app(app)
 
     with app.app_context():
@@ -67,6 +67,16 @@ def create_app(test_config=None):
     def load_user(userid):
         return User.query.get(userid)
 
+    if not oh_debug:
+        @app.errorhandler(Exception)
+        def error_handler(e):
+            app.logger.error(f'The following error occured: {e}', exc_info=True)
+            if isinstance(e, HTTPException):
+                return render_template("error/error.html", e=e)
+
+            # Handle non-HTTP exceptions only
+            return render_template("error/error.html", e=e), 500
+
     from . import home
     app.register_blueprint(home.bp)
 
@@ -75,5 +85,10 @@ def create_app(test_config=None):
 
     from . import upload 
     app.register_blueprint(upload.bp)
+
+    # Start page
+    @app.route('/', methods=['GET'])
+    def welcome():
+        return redirect(url_for('home.welcome'))
 
     return app

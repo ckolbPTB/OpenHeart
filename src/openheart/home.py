@@ -1,10 +1,7 @@
-from flask import (
-    Blueprint, render_template
-)
-from openheart.utils.utils import clean_up_user_files
+from flask import Blueprint, render_template
+from openheart.utils import utils
 
 bp = Blueprint('home', __name__, url_prefix='/home')
-
 
 @bp.route('/', methods=['GET'])
 def welcome():
@@ -13,7 +10,7 @@ def welcome():
 
 @bp.route('/finish', methods=['POST'])
 def finish():
-    clean_up_user_files()
+    utils.clean_up_user_files()
     return render_template('home/welcome.html')
 
 

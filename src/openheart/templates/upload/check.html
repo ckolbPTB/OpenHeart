@@ -21,13 +21,15 @@
     var counter = 0;
     var recon_done = 0;
     var reload = window.setInterval(function () {
-        $.get('/upload/check_images', function(data) {
+        $.get('/upload/check_images/0', function(data) {
             document.querySelector('p').innerHTML = data;
         });
-
+        console.info(counter);
+        console.info(recon_done);
         if (counter > 0) {
             var elem = document.querySelector('[title="reload"]')
-            if (elem.id === "False") {
+            console.info(elem);
+            if ((elem != null) && (elem.id === "False")) {
                 recon_done = 1;
             }
         }
@@ -35,6 +37,9 @@
         counter++;
         if ((counter === 100) || (recon_done === 1)){
             clearInterval(reload);
+            $.get('/upload/check_images/1', function(data) {
+                document.querySelector('p').innerHTML = data;
+                });
         }
     }, 2000);
     </script>
