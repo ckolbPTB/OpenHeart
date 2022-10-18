@@ -10,6 +10,9 @@ from werkzeug.exceptions import HTTPException
 db = SQLAlchemy()
 mail = Mail()
 
+# Debug settings
+oh_debug = os.environ.get("OH_DEBUG").lower() == 'true'
+
 # This must be imported after db is created s.t. the database can pick up the tables form this file
 from openheart.database import User
 import openheart.logger as logger
@@ -64,14 +67,15 @@ def create_app(test_config=None):
     def load_user(userid):
         return User.query.get(userid)
 
-    @app.errorhandler(Exception)
-    def error_handler(e):
-        app.logger.error(f'The following error occured: {e}', exc_info=True)
-        if isinstance(e, HTTPException):
-            return render_template("error/error.html", e=e)
+    if not oh_debug:
+        @app.errorhandler(Exception)
+        def error_handler(e):
+            app.logger.error(f'The following error occured: {e}', exc_info=True)
+            if isinstance(e, HTTPException):
+                return render_template("error/error.html", e=e)
 
-        # Handle non-HTTP exceptions only
-        return render_template("error/error.html", e=e), 500
+            # Handle non-HTTP exceptions only
+            return render_template("error/error.html", e=e), 500
 
     from . import home
     app.register_blueprint(home.bp)
