@@ -36,6 +36,7 @@ def create_app(test_config=None):
         XNAT_PROJECT_ID_VAULT=os.environ.get('XNAT_PROJECT_ID_VAULT'),
         XNAT_PROJECT_ID_OPEN=os.environ.get('XNAT_PROJECT_ID_OPEN'),
         OH_APP_PATH=os.environ.get('OH_APP_PATH'),
+        MAX_CONTENT_LENGTH=int(os.environ.get('OH_APP_MAX_FILE_SIZE')),
     )
 
     if test_config is None:
