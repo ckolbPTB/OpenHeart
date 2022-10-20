@@ -13,23 +13,47 @@
         </div>
     </div>
 
-    <div class="row align-items-center mt-5">
-        <div class="col-6 offset-2">
-        {% for sub in subjects %}
-            <p class="lead">
-              Subject {{sub}}
-            </p>
-            <ol>
-            {%for f in files_for_subject[sub]%}
-                {% set scan = f.name_orig %}
-                <li>Scan {{scan}}</li>
-            {%endfor%}
-            </ol>
-        {%endfor%}
-        </div>
-    </div>
-
     <form method="post" action="{{url_for("upload.check")}}">
+        <div class="row align-items-center mt-5">
+            <div class="col-6 offset-2">
+            {% for sub in subjects %}
+                <p class="lead">
+                  Subject {{sub}}
+                </p>
+                <ol>
+                {%for f in files_for_subject[sub]%}
+                    {% set scan = f.name_orig %}
+                    <li>
+                        <div class="row">
+                            Scan {{scan}}
+                            <select class="form-select form-select-sm" aria-label=".form-select-sm example" name=select_scan_{{f.name_unique}}>
+                                <option selected>Cartesian</option>
+                                <option value="Radial">Radial</option>
+                            </select>
+                        </div>
+                        <div class="input-group input-group-sm mb-3">
+                          <div class="input-group-prepend">
+                            <span class="input-group-text" id="prepend">Front</span>
+                          </div>
+                          <div class="input-group-append">
+                            <span class="input-group-text" id="append">End</span>
+                          </div>
+                        </div>
+
+
+                        Scan {{scan}}
+                        <select class="form-select form-select-sm" aria-label=".form-select-sm example" name=select_scan_{{f.name_unique}}>
+                            <option selected>Cartesian</option>
+                            <option value="Radial">Radial</option>
+                        </select>
+                    </li>
+                {%endfor%}
+                </ol>
+            {%endfor%}
+            </div>
+        </div>
+
+
         <div class="row align-items-center mt-5">
             <div class="col-5 offset-2">
                 <button type="submit" name="upload" class="btn btn-danger">Upload</button>
@@ -39,6 +63,8 @@
             </div>
         </div>
     </form>
+
+
 </div>
 
 {% endblock %}
