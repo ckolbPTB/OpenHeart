@@ -32,8 +32,13 @@
                         </div>
                         <div class="col-md-2">
                             <select class="form-select form-select-sm" name=select_scan_{{f.name_unique}}>
-                                <option selected>m2DCartCine</option>
-                                <option value="Radial">Radial</option>
+                                {%for t in scan_type_list%}
+                                    {%if t == f.scan_type%}
+                                        <option selected>{{t}}</option>
+                                    {% else %}
+                                        <option value={{t}}>{{t}}</option>
+                                    {% endif %}
+                                {%endfor%}
                             </select>
                         </div>
                     </div>

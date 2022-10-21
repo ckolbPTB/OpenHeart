@@ -58,10 +58,13 @@ def uploader():
                             zip.extract(zip_info, path=filepath_out)
                             current_app.logger.info(f'File {zip_info.filename} extracted to {filepath_out}.')
 
+                            # Get scan type from filename
+                            scan_type = utils.get_scan_type(cfile)
                             subject_timed = f"Subj-{str(cpath)}-{time_id}"
                             file = File(user_id=current_user.id, name=str(filepath_out / fname_out),
                                         name_orig=str(cfile), name_unique="_", subject=str(cpath),
-                                        subject_unique=subject_timed, format=czip_content.suffix)
+                                        subject_unique=subject_timed, format=czip_content.suffix,
+                                        scan_type=scan_type)
                             current_app.logger.info('File entry created:')
                             current_app.logger.info(f'   user_id: {file.user_id}')
                             current_app.logger.info(f'   name: {file.name}')
@@ -70,6 +73,7 @@ def uploader():
                             current_app.logger.info(f'   subject: {file.subject}')
                             current_app.logger.info(f'   subject_unique: {file.subject_unique}')
                             current_app.logger.info(f'   format: {file.format}')
+                            current_app.logger.info(f'   scan_type: {file.scan_type}')
 
                             db.session.add(file)
                 db.session.commit()
@@ -86,7 +90,7 @@ def uploader():
             subject_file_lut = utils.create_subject_file_lookup(files)
 
             return render_template('upload/upload_summary.html', subjects=list(subject_file_lut.keys()),
-                                   files_for_subject=subject_file_lut)
+                                   files_for_subject=subject_file_lut, scan_type_list=list(utils.scan_types.keys()))
         else:
             if not request.files:
                 current_app.logger.warning('No file selected for upload.')
@@ -143,10 +147,11 @@ def check():
             list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False).all()
 
             # Get scan type and add to file list
-            print(request.form.get(f'select_scan_{list_files[0].name_unique}'))
+            for f in list_files:
+                f.scan_type = request.form.get(f'select_scan_{f.name_unique}')
+            db.session.commit()
 
-            #success = xnat.upload_raw_mr_to_vault(list_files)
-            success = False
+            success = xnat.upload_raw_mr_to_vault(list_files)
             current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
 
             if success:
