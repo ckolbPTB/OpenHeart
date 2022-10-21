@@ -13,45 +13,33 @@
         </div>
     </div>
 
-    <form method="post" action="{{url_for("upload.check")}}">
-        <div class="row align-items-center mt-5">
-            <div class="col-6 offset-2">
+    <form class="form-inline" method="post" action="{{url_for("upload.check")}}">
+
             {% for sub in subjects %}
-                <p class="lead">
-                  Subject {{sub}}
-                </p>
-                <ol>
+                <div class="row align-items-center mt-5">
+                    <div class="col-6 offset-2">
+                        <p class="lead">
+                          Subject {{sub}}
+                        </p>
+                    </div>
+                </div>
+
                 {%for f in files_for_subject[sub]%}
-                    {% set scan = f.name_orig %}
-                    <li>
-                        <div class="row">
+                    <div class="row align-items-center">
+                        <div class="col-md-auto offset-3">
+                            {% set scan = f.name_orig %}
                             Scan {{scan}}
-                            <select class="form-select form-select-sm" aria-label=".form-select-sm example" name=select_scan_{{f.name_unique}}>
-                                <option selected>Cartesian</option>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" name=select_scan_{{f.name_unique}}>
+                                <option selected>m2DCartCine</option>
                                 <option value="Radial">Radial</option>
                             </select>
                         </div>
-                        <div class="input-group input-group-sm mb-3">
-                          <div class="input-group-prepend">
-                            <span class="input-group-text" id="prepend">Front</span>
-                          </div>
-                          <div class="input-group-append">
-                            <span class="input-group-text" id="append">End</span>
-                          </div>
-                        </div>
+                    </div>
 
-
-                        Scan {{scan}}
-                        <select class="form-select form-select-sm" aria-label=".form-select-sm example" name=select_scan_{{f.name_unique}}>
-                            <option selected>Cartesian</option>
-                            <option value="Radial">Radial</option>
-                        </select>
-                    </li>
                 {%endfor%}
-                </ol>
             {%endfor%}
-            </div>
-        </div>
 
 
         <div class="row align-items-center mt-5">
