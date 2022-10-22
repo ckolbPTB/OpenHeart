@@ -10,6 +10,6 @@ RUN pip install -r requirements.txt
 RUN pip install -e .
 
 ENV FLASK_APP "openheart"
-env FLASK_DEBUG "1"
+ENV FLASK_DEBUG "1"
 
 CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0", "--port=5001"]
