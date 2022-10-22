@@ -12,6 +12,7 @@ dependencies:
   - pip:
     - setuptools
     - flask==2.2.0
+    - gunicorn
     - docker
     - flask-mail
     - flask-sqlalchemy

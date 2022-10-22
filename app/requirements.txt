@@ -4,6 +4,7 @@ imageio
 matplotlib
 setuptools
 flask==2.2.0
+unicorn
 docker
 flask-mail
 flask-sqlalchemy
