@@ -13,7 +13,18 @@
         </div>
     </div>
 
-    <form class="form-inline" method="post" action="{{url_for("upload.check")}}">
+    <div class="row align-items-center">
+        <div class="col-8 offset-2 mt-5">
+            <p class="text-danger">The following files were detected as duplicates based on their hash sum and cannot be uploaded:</p>
+        </div>
+        <div class="col-7 offset-3">
+            {% for f in list_duplicate_files %}
+                <small class="text-danger">{{f}}</small><br>
+            {%endfor%}
+        </div>
+    </div>
+
+    <form class="form-inline" method="post" action="{{url_for('upload.check')}}">
 
             {% for sub in subjects %}
                 <div class="row align-items-center mt-5">

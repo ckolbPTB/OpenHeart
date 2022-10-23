@@ -82,15 +82,19 @@ def uploader():
             os.remove(str(f_name))
             current_app.logger.info(f'File {f_name} removed.')
 
-            # Transform .dat to .h5 and rename .h5 with unique uid
-            postprocess_upload()
+            # Transform .dat to .h5
+            assert convert_files(), "The conversion of some files failed."
+
+            # Verify uniqueness of files and rename .h5 with unique uid
+            list_duplicate_files = uniquely_identify_files()
 
             files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False,
                                          reconstructed=False).all()
             subject_file_lut = utils.create_subject_file_lookup(files)
 
             return render_template('upload/upload_summary.html', subjects=list(subject_file_lut.keys()),
-                                   files_for_subject=subject_file_lut, scan_type_list=list(utils.scan_types.keys()))
+                                   files_for_subject=subject_file_lut, scan_type_list=list(utils.scan_types.keys()),
+                                   list_duplicate_files=list_duplicate_files)
         else:
             if not request.files:
                 current_app.logger.warning('No file selected for upload.')
@@ -98,11 +102,6 @@ def uploader():
                 current_app.logger.warning(f'File {request.files["file"].filename} selected for upload is not a zip file.')
 
     return render_template('upload/upload.html')
-
-
-def postprocess_upload():
-    assert convert_files(), "The conversion of some files failed."
-    assert uniquely_identify_files(), "The renaming into md5 hashs failed."
 
 
 @login_required
@@ -125,16 +124,24 @@ def convert_files():
 
 
 def uniquely_identify_files():
-    list_files = File.query.filter_by(user_id=current_user.id, name_unique = "_", format='.h5', transmitted=False,
+    list_files = File.query.filter_by(user_id=current_user.id, name_unique="_", format='.h5', transmitted=False,
                                       reconstructed=False).all()
 
-    for file in list_files:
-        md5_identifier = utils.rename_h5_file(Path(file.name))
-        file.name_unique = str(md5_identifier)
-        db.session.commit()
-        current_app.logger.info(f'Unique filename {file.name_unique} for file {file.name} added.')
+    list_unique_names = []
+    list_duplicate_files = []
+    for f in list_files:
+        md5_identifier = str(utils.rename_h5_file(Path(f.name)))
+        if md5_identifier in list_unique_names:
+            current_app.logger.warning(f'File {f.name} is a duplicate and will be removed.')
+            db.session.delete(f)
+            list_duplicate_files.append(f'Subject {f.subject} - Scan {f.name_orig}')
+        else:
+            f.name_unique = md5_identifier
+            current_app.logger.info(f'Unique filename {f.name_unique} for file {f.name} added.')
+            list_unique_names.append(md5_identifier)
+    db.session.commit()
 
-    return True
+    return list_duplicate_files
 
 
 @bp.route('/check', methods=["GET", "POST"])
