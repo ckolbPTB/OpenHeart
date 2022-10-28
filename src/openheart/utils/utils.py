@@ -13,6 +13,10 @@ from flask_login import current_user
 
 from openheart.database import db, File
 
+# Define supported scan types and their xnat codes to select image reconstruction
+scan_types = {'m2DCartCine' : '0001',
+    '2DRadRTCine' : '0002'}
+
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
 
@@ -293,6 +297,7 @@ def clean_up_user_files(recreate_user_folders=False):
 
     return True
 
+
 def create_subject_file_lookup(list_files):
 
     list_subjects = set([f.subject for f in list_files])
@@ -305,3 +310,16 @@ def create_subject_file_lookup(list_files):
         sub_id_lut[f.subject].append(f)
 
     return sub_id_lut
+
+
+def get_scan_type(file_name):
+    '''
+    Based on file name determine what kind of scan it is.
+    :param file_name: string
+    :return: string
+    '''
+    scan_type = '_'
+    for key in scan_types.keys():
+        if key in  file_name:
+            scan_type = key
+    return scan_type

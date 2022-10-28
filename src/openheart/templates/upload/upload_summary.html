@@ -13,23 +13,53 @@
         </div>
     </div>
 
-    <div class="row align-items-center mt-5">
-        <div class="col-6 offset-2">
-        {% for sub in subjects %}
-            <p class="lead">
-              Subject {{sub}}
-            </p>
-            <ol>
-            {%for f in files_for_subject[sub]%}
-                {% set scan = f.name_orig %}
-                <li>Scan {{scan}}</li>
+    {%if list_duplicate_files|length > 0%}
+    <div class="row align-items-center">
+        <div class="col-8 offset-2 mt-5">
+            <p class="text-danger">The following files were detected as duplicates based on their hash sum and cannot be uploaded:</p>
+        </div>
+        <div class="col-7 offset-3">
+            {% for f in list_duplicate_files %}
+                <small class="text-danger">{{f}}</small><br>
             {%endfor%}
-            </ol>
-        {%endfor%}
         </div>
     </div>
+    {% endif %}
 
-    <form method="post" action="{{url_for("upload.check")}}">
+    <form class="form-inline" method="post" action="{{url_for('upload.check')}}">
+
+            {% for sub in subjects %}
+                <div class="row align-items-center mt-5">
+                    <div class="col-6 offset-2">
+                        <p class="lead">
+                          Subject {{sub}}
+                        </p>
+                    </div>
+                </div>
+
+                {%for f in files_for_subject[sub]%}
+                    <div class="row align-items-center">
+                        <div class="col-md-auto offset-3">
+                            {% set scan = f.name_orig %}
+                            Scan {{scan}}
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" name=select_scan_{{f.name_unique}}>
+                                {%for t in scan_type_list%}
+                                    {%if t == f.scan_type%}
+                                        <option selected>{{t}}</option>
+                                    {% else %}
+                                        <option value={{t}}>{{t}}</option>
+                                    {% endif %}
+                                {%endfor%}
+                            </select>
+                        </div>
+                    </div>
+
+                {%endfor%}
+            {%endfor%}
+
+
         <div class="row align-items-center mt-5">
             <div class="col-5 offset-2">
                 <button type="submit" name="upload" class="btn btn-danger">Upload</button>
@@ -39,6 +69,8 @@
             </div>
         </div>
     </form>
+
+
 </div>
 
 {% endblock %}

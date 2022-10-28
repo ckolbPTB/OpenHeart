@@ -1,13 +1,11 @@
-import zipfile
 from pathlib import Path
 from uuid import uuid4
-from openheart.database import File
 import pyxnat
 from datetime import datetime
 import os
 import ismrmrd
 from openheart.utils import utils
-from zipfile import ZipFile, is_zipfile
+from zipfile import ZipFile
 from flask import current_app
 from flask_login import current_user
 
@@ -77,7 +75,7 @@ def set_xnat_ids_in_files(list_files: list) -> list:
     for idx, f in enumerate(list_files):
         experiment_id = utils.create_md5_from_string(f.subject_unique)
         experiment_id = f"Exp-{experiment_id[:digits_experiment_id]}"
-        scan_id = f'Scan_{uuid4()}'
+        scan_id = f'Scan_{uuid4()}-{utils.scan_types[f.scan_type]}'
 
         f.xnat_subject_id = f.subject_unique
         f.xnat_experiment_id = experiment_id

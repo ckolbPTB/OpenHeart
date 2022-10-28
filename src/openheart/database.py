@@ -30,6 +30,8 @@ class File(db.Model):
     name_orig = db.Column(db.String(384), default="_", unique=False)
     name_unique = db.Column(db.String(384), default="_", unique=False)
 
+    scan_type = db.Column(db.String(384), default="_", unique=False)
+
     subject = db.Column(db.String(384), unique=False)
     subject_unique = db.Column(db.String(384), unique=False)
 
