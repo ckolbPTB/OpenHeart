@@ -18,7 +18,8 @@ bp = Blueprint('upload', __name__, url_prefix='/upload')
 @login_required
 def upload():
     utils.clean_up_user_files(recreate_user_folders=True)
-    return render_template('upload/upload.html')
+    return render_template('upload/upload.html',
+                           max_file_size=str(int(current_app.config['MAX_CONTENT_LENGTH']/(1024 * 1024 * 1024))))
 
 
 @bp.route('/uploader', methods=['POST'])
