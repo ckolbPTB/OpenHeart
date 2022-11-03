@@ -8,6 +8,7 @@ from openheart.utils import utils
 from zipfile import ZipFile
 from flask import current_app
 from flask_login import current_user
+import json
 
 from itertools import chain
 
@@ -190,6 +191,47 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
     return True, scan
 
 
+def get_container_info_for_scan(xnat_project, scan):
+    '''
+    Get the container log and find out which containers have run for a given scan
+    '''
+
+    # Get container log
+    json_strg = xnat_project._intf._exec('/xapi/containers', 'GET', headers={'accept': 'application/json'})
+    json_list = json.loads(json_strg)
+
+    # Go through each entry and find out if the scan is mentioned
+    container_json_info_list = []
+    for container_json_info in json_list:
+        if scan in container_json_info['mounts'][0]['xnat-host-path']:
+            container_json_info_list.append(container_json_info)
+    return container_json_info_list
+
+
+def get_container_status(xnat_project, container_json_info):
+    '''
+    Get the status of a given container and return the stdout if it is finished or the stdout + stderr if it has failed.
+    '''
+
+    # Container status
+    container_status = container_json_info['status']
+    container_log = []
+
+    if container_status == 'Complete' or container_status == 'Failed':
+        # Get stdout
+        get_strg = f'/xapi/containers/{container_json_info["container-id"]}/logs/stdout'
+        log_strg = xnat_project._intf._exec(get_strg, 'GET', headers={'accept': 'application/json'})
+        container_log.append(log_strg)
+
+    elif container_status == 'Failed':
+        # Get stderr
+        get_strg = f'/xapi/containers/{container_json_info["container-id"]}/logs/stderr'
+        log_strg = xnat_project._intf._exec(get_strg, 'GET', headers={'accept': 'application/json'})
+        container_log.append(log_strg)
+
+    return(container_status, container_log)
+
+
 def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
     '''
     If dicom images have been reconstructed, they are downloaded as a zip file and
@@ -202,8 +244,16 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
     if check_if_scan_was_reconstructed(scan):
 
-        # Download dicom
-        try:
+        # Check status of the scan
+        container_json_info_list = get_container_info_for_scan(xnat_project, scan)
+        container_status, container_log = get_container_status(xnat_project, container_json_info_list)
+
+        if container_status == 'Complete' or container_status == 'Error':
+            current_app.logger.info(container_log[0])
+        elif container_status == 'Error':
+            current_app.logger.info(container_log[1])
+
+        if container_status == 'Complete':
             current_app.logger.info(f'Trying to download dicom files for {scan}.')
             fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
 
@@ -219,10 +269,7 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
             delete_files_from_path(fpath_output, {".zip"})
             current_app.logger.info(f'Dicom files successfully downloaded.')
             return True
-
-        except Exception as e:
-            current_app.logger.info(f'Downloading reconstructed dicom images failed: {e}.')
-            return False
+        return False
     else:
         return False
 
