@@ -178,8 +178,14 @@ def check():
 @login_required
 def check_images(timeout):
 
+    # Get files which have been transmitted but not yet submitted
     files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True, submitted=False).all()
 
+    # Check the status of the container for each scan
+    files = xnat.update_container_status(files)
+    db.session.commit()
+
+    # Download dicom data for the scans where the container has finished successfully
     files = xnat.download_dcm_images(files)
     db.session.commit()
 
