@@ -191,7 +191,7 @@ def upload_rawdata_file_to_scan(xnat_project, xnat_file_dict, list_filenames_raw
     return True, scan
 
 
-def get_container_info_for_scan(xnat_project, scan):
+def get_container_info_for_scan(xnat_project, xnat_file_dict):
     '''
     Get the container log and find out which containers have run for a given scan
     '''
@@ -199,6 +199,9 @@ def get_container_info_for_scan(xnat_project, scan):
     # Get container log
     json_strg = xnat_project._intf._exec('/xapi/containers', 'GET', headers={'accept': 'application/json'})
     json_list = json.loads(json_strg)
+    
+    # Get scan
+    scan = get_scan_from_project(xnat_project, *get_ids_from_dict(xnat_file_dict))
 
     # Go through each entry and find out if the scan is mentioned
     container_json_info_list = []
@@ -243,7 +246,7 @@ def update_container_status(file_list):
 
     for xnd, f in zip(list_xnat_dicts, file_list):
         if f.container_status < 3:
-            container_json_info_list = get_container_info_for_scan(xnat_project, scan)
+            container_json_info_list = get_container_info_for_scan(xnat_project, xnd)
             container_status, container_log = get_container_status(xnat_project, container_json_info_list)
 
             if container_status == 'Created':
