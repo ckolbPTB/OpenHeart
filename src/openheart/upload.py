@@ -192,7 +192,7 @@ def check_images(timeout):
     all_recons_performed = True
     if timeout == 0:
         for f in files:
-            all_recons_performed *= f.reconstructed
+            all_recons_performed *= (f.reconstructed or (f.container_status == 4))
             current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} '
                                     f'-> all_recons_performed: {all_recons_performed}.')
 

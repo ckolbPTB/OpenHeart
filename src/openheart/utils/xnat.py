@@ -199,14 +199,11 @@ def get_container_info_for_scan(xnat_project, xnat_file_dict):
     # Get container log
     json_strg = xnat_project._intf._exec('/xapi/containers', 'GET', headers={'accept': 'application/json'})
     json_list = json.loads(json_strg)
-    
-    # Get scan
-    scan = get_scan_from_project(xnat_project, *get_ids_from_dict(xnat_file_dict))
 
     # Go through each entry and find out if the scan is mentioned
     container_json_info_list = []
     for container_json_info in json_list:
-        if scan in container_json_info['mounts'][0]['xnat-host-path']:
+        if xnat_file_dict['scan_id'] in container_json_info['mounts'][0]['xnat-host-path']:
             container_json_info_list.append(container_json_info)
     return container_json_info_list
 
@@ -225,13 +222,16 @@ def get_container_status(xnat_project, container_json_info):
         get_strg = f'/xapi/containers/{container_json_info["container-id"]}/logs/stdout'
         log_strg = xnat_project._intf._exec(get_strg, 'GET', headers={'accept': 'application/json'})
         container_log.append(log_strg)
-        current_app.logger.info(container_log[0])
+
+        if container_status == 'Complete':
+            current_app.logger.debug(container_log[0])
 
     elif container_status == 'Failed':
         # Get stderr
         get_strg = f'/xapi/containers/{container_json_info["container-id"]}/logs/stderr'
         log_strg = xnat_project._intf._exec(get_strg, 'GET', headers={'accept': 'application/json'})
         container_log.append(log_strg)
+        current_app.logger.error(container_log[0])
         current_app.logger.error(container_log[1])
 
     return(container_status, container_log)
@@ -247,18 +247,23 @@ def update_container_status(file_list):
     for xnd, f in zip(list_xnat_dicts, file_list):
         if f.container_status < 3:
             container_json_info_list = get_container_info_for_scan(xnat_project, xnd)
-            container_status, container_log = get_container_status(xnat_project, container_json_info_list)
+            if len(container_json_info_list) > 0:
+                container_status, container_log = get_container_status(xnat_project, container_json_info_list[0])
 
-            if container_status == 'Created':
-                f.container_status = 0
-            elif container_status == 'Running':
-                f.container_status = 1
-            elif container_status == 'Finishing':
-                f.container_status = 2
-            elif container_status == 'Complete':
-                f.container_status = 3
-            elif container_status == 'Failed':
-                f.container_status = 4
+                if container_status == 'Created':
+                    f.container_status = 0
+                elif container_status == 'Running':
+                    f.container_status = 1
+                elif container_status == 'Finishing':
+                    f.container_status = 2
+                elif container_status == 'Complete':
+                    f.container_status = 3
+                elif container_status == 'Failed':
+                    f.container_status = 4
+
+                current_app.logger.info(f'Container status of scan {xnd["scan_id"]}: {container_status}.')
+            else:
+                current_app.logger.info(f'Container for scan {xnd["scan_id"]} has not been triggered yet.')
 
     xnat_server.disconnect()
     return file_list
@@ -276,20 +281,25 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
     if check_if_scan_was_reconstructed(scan):
 
-        current_app.logger.info(f'Trying to download dicom files for {scan}.')
-        fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
+        try:
+            current_app.logger.info(f'Trying to download dicom files for {scan}.')
+            fname_dcm_zip = Path(scan.resource('DICOM').get(str(fpath_output)))
 
-        # Extract zip file
-        with ZipFile(fname_dcm_zip, 'r') as zip:
-            zip.extractall(str(fpath_output))
+            # Extract zip file
+            with ZipFile(fname_dcm_zip, 'r') as zip:
+                zip.extractall(str(fpath_output))
 
-            # Update scan uid with (0020,000E) 	Series Instance UID
-            dcm_header = utils.get_dicom_header(fpath_output)
-            scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
-            current_app.logger.info(f'Dicom UID updated to {str(dcm_header[0][0x0020, 0x000e].value)}.')
+                # Update scan uid with (0020,000E) 	Series Instance UID
+                dcm_header = utils.get_dicom_header(fpath_output)
+                scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
+                current_app.logger.info(f'Dicom UID updated to {str(dcm_header[0][0x0020, 0x000e].value)}.')
 
-        delete_files_from_path(fpath_output, {".zip"})
-        current_app.logger.info(f'Dicom files successfully downloaded.')
+            delete_files_from_path(fpath_output, {".zip"})
+            current_app.logger.info(f'Dicom files successfully downloaded.')
+
+        except Exception as e:
+            current_app.logger.info(f'Downloading reconstructed dicom images failed: {e}.')
+            return False
 
     return True
 
