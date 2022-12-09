@@ -17,6 +17,65 @@ from openheart.database import db, File
 scan_types = {'m2DCartCine' : '0001',
     '2DRadRTCine' : '0002'}
 
+def test_file_reconstructability(ismrmrd_header):
+
+    '''
+    Function checking the following conditions:
+    - encoding is done in 2D (multi-slice is allowed)
+    - encoded space contains only multi-slice and multi-phase (not repetitions, contrasts, etc.)
+    '''
+    can_reconstruct = True
+    can_reconstruct *= test_encoding_is_2D(ismrmrd_header)
+    can_reconstruct *= test_encoding_is_cine(ismrmrd_header)
+    can_reconstruct *= test_can_reconstruct_trajectory(ismrmrd_header)
+
+    return bool(can_reconstruct)
+
+def test_encoding_is_2D(ismrmrd_header):
+    num_encoded_slices = int(ismrmrd_header.encoding[0].encodedSpace.matrixSize.z)
+    return bool(num_encoded_slices == 1)
+
+def test_encoding_is_cine(ismrmrd_header):
+    '''
+    Function to check if encoding is performed only for slices and phases.
+    Segments are ignored.
+    '''
+
+    is_multislice_cine = True
+
+    num_avgs = int(ismrmrd_header.encoding[0].encodingLimits.average.maximum) - \
+               int(ismrmrd_header.encoding[0].encodingLimits.average.minimum)
+    is_multislice_cine *= (num_avgs == 0)
+
+    num_sets = int(ismrmrd_header.encoding[0].encodingLimits.set.maximum) - \
+               int(ismrmrd_header.encoding[0].encodingLimits.set.minimum)
+    is_multislice_cine *= (num_sets == 0)
+
+    num_reps = int(ismrmrd_header.encoding[0].encodingLimits.repetition.maximum) - \
+               int(ismrmrd_header.encoding[0].encodingLimits.repetition.minimum)
+    is_multislice_cine *= (num_reps == 0)
+
+    num_contrasts = int(ismrmrd_header.encoding[0].encodingLimits.contrast.maximum) - \
+                    int(ismrmrd_header.encoding[0].encodingLimits.contrast.minimum)
+    is_multislice_cine *= (num_contrasts == 0)
+
+    num_slices =    int(ismrmrd_header.encoding[0].encodingLimits.slice.maximum) - \
+                    int(ismrmrd_header.encoding[0].encodingLimits.slice.minimum)
+    is_multislice_cine *= (num_slices >= 0)
+
+    num_phases = int(ismrmrd_header.encoding[0].encodingLimits.phase.maximum) - \
+                    int(ismrmrd_header.encoding[0].encodingLimits.phase.minimum)
+    is_multislice_cine *= (num_phases >= 0)
+
+    return bool(is_multislice_cine)
+
+def test_can_reconstruct_trajectory(ismrmrd_header):
+
+    valid_trajectories = ['cartesian']
+    traj_type = str(ismrmrd_header.encoding[0].trajectory)
+
+    return bool(traj_type in valid_trajectories)
+
 def ismrmrd_2_xnat(ismrmrd_header):
     xnat_dict = {}
 
