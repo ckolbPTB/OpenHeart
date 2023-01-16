@@ -12,40 +12,122 @@ from flask import current_app
 from flask_login import current_user
 
 from openheart.database import db, File
+import xmlschema
 
 # Define supported scan types and their xnat codes to select image reconstruction
 scan_types = {'m2DCartCine' : '0001',
     '2DRadRTCine' : '0002'}
 
-def ismrmrd_2_xnat(ismrmrd_header):
-    xnat_dict = {}
+def ismrmrd_2_xnat(ismrmrd_header, xml_scheme_filename):
+    xml_schema = xmlschema.XMLSchema(xml_scheme_filename)
 
-    xnat_dict['scans'] = 'xnat:mrScanData'
-    xnat_dict['xnat:mrScanData/fieldStrength'] = str(ismrmrd_header.acquisitionSystemInformation.systemFieldStrength_T) + 'T'
+    assert xml_schema.is_valid(ismrmrd_header), 'Raw data file is not a valid ismrmrd file'
 
-    xnat_dict['xnat:mrScanData/parameters/subjectPosition'] = ismrmrd_header.measurementInformation.patientPosition.value
+    ismrmrd_dict = xml_schema.to_dict(ismrmrd_header)
 
-    xnat_dict['xnat:mrScanData/parameters/voxelRes.units'] = 'mm'
-    xnat_dict['xnat:mrScanData/parameters/voxelRes/x'] = float(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.x / float(ismrmrd_header.encoding[0].reconSpace.matrixSize.x))
-    xnat_dict['xnat:mrScanData/parameters/voxelRes/y'] = float(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.y / float(ismrmrd_header.encoding[0].reconSpace.matrixSize.y))
-    xnat_dict['xnat:mrScanData/parameters/voxelRes/z'] = float(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.z / float(ismrmrd_header.encoding[0].reconSpace.matrixSize.z))
+    # Get main parameter groups
+    xnat_mrd_list = []
+    for ckeys in ismrmrd_dict.keys():
+        if '@' not in ckeys and 'userParameter' not in ckeys:
+            xnat_mrd_list.append([ckeys, ])
 
-    xnat_dict['xnat:mrScanData/parameters/fov/x'] = int(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.x)
-    xnat_dict['xnat:mrScanData/parameters/fov/y'] = int(ismrmrd_header.encoding[0].reconSpace.fieldOfView_mm.y)
+    def get_dict_values(dict, key_list):
+        if len(key_list) == 0:
+            return None
+        else:
+            cval = dict[key_list[0]]
+            for ind in range(1, len(key_list)):
+                cval = cval[key_list[ind]]
+            return (cval)
 
-    xnat_dict['xnat:mrScanData/parameters/matrix/x'] = int(ismrmrd_header.encoding[0].reconSpace.matrixSize.x)
-    xnat_dict['xnat:mrScanData/parameters/matrix/y'] = int(ismrmrd_header.encoding[0].reconSpace.matrixSize.y)
+    # Go through all parameters and create list of parameter names
+    for knd in range(5):
+        flag_finished = True
+        xnat_mrd_list_new = []
+        for ckey_list in xnat_mrd_list:
+            cvals = get_dict_values(ismrmrd_dict, ckey_list)
+            if not isinstance(cvals, list):
+                if isinstance(cvals, dict):
+                    flag_finished = False
+                    for ckey in cvals.keys():
+                        xnat_mrd_list_new.append(ckey_list + [ckey, ])
+                else:
+                    xnat_mrd_list_new.append(ckey_list)
+            else:
+                for jnd in range(len(cvals)):
+                    if isinstance(cvals[jnd], dict):
+                        flag_finished = False
+                        for ckey in cvals[jnd].keys():
+                            xnat_mrd_list_new.append(ckey_list + [jnd, ckey, ])
+                    else:
+                        xnat_mrd_list_new.append(ckey_list + [jnd, ])
 
-    xnat_dict['xnat:mrScanData/parameters/partitions'] = int(ismrmrd_header.encoding[0].encodingLimits.kspace_encoding_step_2.maximum - ismrmrd_header.encoding[0].encodingLimits.kspace_encoding_step_2.minimum + 1)
-    xnat_dict['xnat:mrScanData/parameters/tr'] = float(ismrmrd_header.sequenceParameters.TR[0])
-    xnat_dict['xnat:mrScanData/parameters/te'] = float(ismrmrd_header.sequenceParameters.TE[0])
-    xnat_dict['xnat:mrScanData/parameters/ti'] = float(ismrmrd_header.sequenceParameters.TI[0])
-    xnat_dict['xnat:mrScanData/parameters/flip'] = int(ismrmrd_header.sequenceParameters.flipAngle_deg[0])
-    xnat_dict['xnat:mrScanData/parameters/sequence'] = ismrmrd_header.sequenceParameters.sequence_type
+        if flag_finished == True:
+            break
+        xnat_mrd_list = xnat_mrd_list_new
 
-    xnat_dict['xnat:mrScanData/parameters/echoSpacing'] = float(ismrmrd_header.sequenceParameters.echo_spacing[0])
+    # Create dictionary with parameter names and their values
+    xnat_mrd_dict = {}
+    xnat_mrd_dict['scans'] = 'mrd:mrdScanData'
 
-    return(xnat_dict)
+    # First deal with special cases
+    # coilLabel
+    coil_idx = [idx for idx in range(len(xnat_mrd_list)) if xnat_mrd_list[idx][0] == 'acquisitionSystemInformation'
+                and xnat_mrd_list[idx][1] == 'coilLabel' and xnat_mrd_list[idx][3] == 'coilName']
+    num_coils = len(coil_idx)
+
+    coil_label_strg = ''
+    for ind in range(num_coils):
+        coil_label_strg += (get_dict_values(ismrmrd_dict, xnat_mrd_list[coil_idx[ind]]) + ' ')
+
+    xnat_mrd_dict['mrd:mrdScanData/acquisitionSystemInformation/coilLabelList'] = coil_label_strg
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if
+                     elem[0] != 'acquisitionSystemInformation' and elem[1] != 'coilLabel']
+
+    # waveformInformation
+    waveform_idx = [idx for idx in range(len(xnat_mrd_list)) if xnat_mrd_list[idx][0] == 'waveformInformation'
+                    and xnat_mrd_list[idx][2] == 'waveformType']
+    num_waveforms = len(waveform_idx)
+
+    waveform_strg = ''
+    for ind in range(num_waveforms):
+        waveform_strg += (get_dict_values(ismrmrd_dict, xnat_mrd_list[waveform_idx[ind]]) + ' ')
+
+    xnat_mrd_dict['mrd:mrdScanData/waveformInformationList'] = waveform_strg
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[0] != 'waveformInformation']
+
+    # encoding
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[0] != 'encoding' or elem[1] == 0]
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[:3] != ['encoding', 0, 'trajectoryDescription']]
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[:5] != ['encoding', 0, 'multiband', 'spacing', 'dZ']]
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if
+                     elem[:6] != ['encoding', 0, 'paralellImaging', 'multiband', 'spacing', 'dZ']]
+
+    # sequenceParameters
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[:2] != ['sequenceParameters', 'diffusion']]
+
+    single_entries = ['TR', 'TE', 'flipAngle_deg', 'echo_spacing', 'TI']
+    for ind in range(len(single_entries)):
+        xnat_mrd_list = [elem for elem in xnat_mrd_list if
+                         elem[:2] != ['sequenceParameters', single_entries[ind]] or elem[2] == 0]
+
+    # measurementInformation
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[:2] != ['measurementInformation', 'measurementDependency']
+                     or elem[2] == 0]
+    xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[:2] != ['measurementInformation', 'referencedImageSequence',
+                                                                    'referencedSOPInstanceUID'] or elem[3] == 0]
+
+    for ind in range(len(xnat_mrd_list)):
+        ckey = 'mrd:mrdScanData'
+        for jnd in range(len(xnat_mrd_list[ind])):
+            if isinstance(xnat_mrd_list[ind][jnd], str):
+                ckey += ('/' + xnat_mrd_list[ind][jnd])
+            # This field seems to be too long for xnat
+            if 'parallelImaging/accelerationFactor/kspace_encoding_step' in ckey:
+                ckey = ckey.replace('kspace_encoding_step', 'kspace_enc_step')
+        xnat_mrd_dict[ckey] = get_dict_values(ismrmrd_dict, xnat_mrd_list[ind])
+
+    return (xnat_mrd_dict)
 
 
 def max99perc(dat):

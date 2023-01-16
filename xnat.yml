@@ -19,6 +19,7 @@ dependencies:
     - flask-login
     - pydicom
     - ismrmrd
+    - xmlschema
     - pytest
     - coverage
     - git+https://github.com/ckolbPTB/pyxnat.git@share_primary

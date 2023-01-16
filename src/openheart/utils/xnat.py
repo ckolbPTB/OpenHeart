@@ -28,7 +28,7 @@ def get_xnat_connection() -> pyxnat.Interface:
     # Get all projects available on xnat server
     projects = xnat_server.select.projects().get()
     if len(projects) == 0:
-        raise ConnectionError('No projects on xnat server found. Is the server running?')
+        raise ConnectionError(f'No projects on xnat server {current_app.config["XNAT_SERVER"]} found. Is the server running?')
     return xnat_server
 
 
@@ -127,8 +127,8 @@ def get_xnat_hdr_from_h5_file(filename_with_ext: str):
         output: dict containing keys describing a xnat:mrScanData file
     '''
     dset = ismrmrd.Dataset(filename_with_ext, 'dataset', create_if_needed=False)
-    header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-    xnat_hdr = utils.ismrmrd_2_xnat(header)
+    header = dset.read_xml_header()
+    xnat_hdr = utils.ismrmrd_2_xnat(header, os.path.join(os.path.dirname(__file__), 'ismrmrd.xsd'))
     dset.close()
     current_app.logger.info(f'Xnat file header extracted from {filename_with_ext}.')
 
