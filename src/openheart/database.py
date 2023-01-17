@@ -15,6 +15,9 @@ class User(UserMixin, db.Model):
     # Hashed version of the security token sent to the user
     token_hash = db.Column(db.String())
 
+    upload_filename_zip = db.Column(db.String(384), default="_", unique=False)
+    upload_folder_zip = db.Column(db.String(384), default="_", unique=False)
+
     def set_token(self, token):
         self.token_hash = generate_password_hash(token)
         current_app.logger.info(f'Hash {self.token_hash} created from token.')

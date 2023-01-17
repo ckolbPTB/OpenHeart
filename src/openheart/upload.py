@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, current_app, redirect, url_for
+from flask import Blueprint, render_template, request, current_app, redirect, url_for, jsonify, abort, Response
 from flask_login import login_required, current_user
 
 from werkzeug.utils import secure_filename
@@ -26,21 +26,41 @@ def upload():
 @login_required
 def uploader():
     if request.method == 'POST':
-        time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
-        current_app.logger.info(f'Current time ID created: {time_id}.')
+        # Get info from database
+        user = User.query.get(current_user.id)
+        user_folder = 'Uid' + str(current_user.id)
+        current_app.logger.info(f'Current user {current_user.id} with folder {user_folder}.')
 
-        if request.files and os.path.splitext(request.files['file'].filename)[1].lower() == '.zip':
-            # Get info from database
-            user = User.query.get(current_user.id)
-            user_folder = 'Uid' + str(current_user.id)
-            current_app.logger.info(f'Current user {current_user.id} with folder {user_folder}.')
+        # Save file in upload folder
+        f = request.files['file']
+        filepath_out = Path(current_app.config['DATA_FOLDER']) / user_folder
+        f_name = filepath_out / secure_filename(f"{user.id}_{f.filename}")
+        f.save(str(f_name))
+        current_app.logger.info(f'File {f_name} saved.')
 
-            # Save file in upload folder
-            f = request.files['file']
+        current_user.upload_filename_zip = str(f_name)
+        current_user.upload_folder_zip = user_folder
+        db.session.commit()
+
+    return render_template('upload/upload.html')
+
+
+@bp.route('/unpack', methods=['POST'])
+@login_required
+def unpack():
+    if request.method == 'POST':
+        # Get folder and file names
+        f_name = current_user.upload_filename_zip
+        user_folder = current_user.upload_folder_zip
+
+        print(f_name)
+        print(user_folder)
+
+        if f_name != '_' and user_folder != '_':
+            time_id = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')[:-3]
+            current_app.logger.info(f'Current time ID created: {time_id}.')
+
             filepath_out = Path(current_app.config['DATA_FOLDER']) / user_folder
-            f_name = filepath_out / secure_filename(f"{user.id}_{f.filename}")
-            f.save(str(f_name))
-            current_app.logger.info(f'File {f_name} saved.')
 
             # Unzip files
             with ZipFile(f_name, 'r') as zip:
@@ -50,7 +70,7 @@ def uploader():
                 for zip_info in zip_info_list:
                     if not zip_info.is_dir():
                         czip_content = Path(zip_info.filename)
-                        cpath, cfile = czip_content.parent, czip_content.name 
+                        cpath, cfile = czip_content.parent, czip_content.name
 
                         if utils.valid_extension(czip_content):
                             fname_out = f"user_{current_user.id}_subj_{cpath}_{cfile}"
@@ -82,6 +102,10 @@ def uploader():
             os.remove(str(f_name))
             current_app.logger.info(f'File {f_name} removed.')
 
+            current_user.upload_filename_zip = "_"
+            current_user.upload_folder_zip = "_"
+            db.session.commit()
+
             # Transform .dat to .h5
             assert convert_files(), "The conversion of some files failed."
 
@@ -95,11 +119,6 @@ def uploader():
             return render_template('upload/upload_summary.html', subjects=list(subject_file_lut.keys()),
                                    files_for_subject=subject_file_lut, scan_type_list=list(utils.scan_types.keys()),
                                    list_duplicate_files=list_duplicate_files)
-        else:
-            if not request.files:
-                current_app.logger.warning('No file selected for upload.')
-            else:
-                current_app.logger.warning(f'File {request.files["file"].filename} selected for upload is not a zip file.')
 
     return render_template('upload/upload.html')
 

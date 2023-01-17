@@ -369,6 +369,11 @@ def clean_up_user_files(recreate_user_folders=False):
             shutil.rmtree(oh_data_path_user)
             current_app.logger.info(f'   {oh_data_path_user} deleted')
 
+        # Clean zip file info
+        current_user.upload_filename_zip = "_"
+        current_user.upload_folder_zip = "_"
+        db.session.commit()
+
         # Create empty folders for user
         if recreate_user_folders:
             oh_data_path_user.mkdir()

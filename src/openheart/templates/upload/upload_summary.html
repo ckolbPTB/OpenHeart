@@ -26,7 +26,7 @@
     </div>
     {% endif %}
 
-    <form class="form-inline" method="post" action="{{url_for('upload.check')}}">
+    <form class="form-inline" id="form_upload_2_xnat" method="post" action="{{url_for('upload.check')}}">
 
             {% for sub in subjects %}
                 <div class="row align-items-center mt-5">
@@ -69,6 +69,13 @@
             </div>
         </div>
     </form>
+    <div class="col-6 offset-2 mt-5">
+        <div class="progress">
+            <div id="progress_upload_2_xnat" class="progress-bar progress-bar-striped bg-danger" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                0%
+            </div>
+        </div>
+    </div>
 
 
 </div>
