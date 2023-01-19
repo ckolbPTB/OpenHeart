@@ -21,6 +21,13 @@
     var counter = 0;
     var recon_done = 0;
     var reload = window.setInterval(function () {
+        if (counter == 0) {
+            console.info('Upload scans xnat started');
+            $.post('/upload/upload_scans_xnat', function(data) {
+            console.info('Upload scans xnat finished');
+            });
+        }
+
         $.get('/upload/check_images/0', function(data) {
             document.querySelector('p').innerHTML = data;
         });

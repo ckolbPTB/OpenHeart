@@ -3,11 +3,19 @@
     </div>
     {% for sub in subjects %}
         {% set sub_ns = namespace(curr_sub_reconstructed = True) %}
+        recon1-{{sub_ns.curr_sub_reconstructed}}--
+        <!--{% set sub_ns = namespace(curr_sub_transmitted = True) %}-->
         {%for f in files_for_subject[sub]%}
             {% if f.reconstructed == False %}
                 {% set sub_ns.curr_sub_reconstructed = False %}
             {% endif %}
+            recon2-{{sub_ns.curr_sub_reconstructed}}--
+            <!--{% if f.transmitted == False %}
+                {% set sub_ns.curr_sub_transmitted = False %}
+            {% endif %}-->
         {% endfor %}
+        recon3-{{sub_ns.curr_sub_reconstructed}}--
+        <!-- trans-{{sub_ns.curr_sub_transmitted}}-- -->
         {% if loop.index0 % 4 == 0 %}
             <div class="row">
         {% endif %}
@@ -71,11 +79,19 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row">
-                                        <div class="text-center text-wrap text-break">
-                                            Reconstructing...
+                                    {% if sub_ns.curr_sub_transmitted == 1 %}
+                                        <div class="row">
+                                            <div class="text-center text-wrap text-break">
+                                                Reconstructing...
+                                            </div>
                                         </div>
-                                    </div>
+                                    {% else %}
+                                        <div class="row">
+                                            <div class="text-center text-wrap text-break">
+                                                Uploading to XNAT...
+                                            </div>
+                                        </div>
+                                    {% endif %}
                                 {% else %}
                                     <div class="row mt-4">
                                         <div class="d-flex justify-content-center">

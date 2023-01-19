@@ -127,6 +127,9 @@ def ismrmrd_2_xnat(ismrmrd_header, xml_scheme_filename):
                 ckey = ckey.replace('kspace_encoding_step', 'kspace_enc_step')
         xnat_mrd_dict[ckey] = get_dict_values(ismrmrd_dict, xnat_mrd_list[ind])
 
+
+    xnat_mrd_dict['mrd:mrdScanData/acquisitionSystemInformation/coilLabelList'] = 'TEMP'
+
     return (xnat_mrd_dict)
 
 

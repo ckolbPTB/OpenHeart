@@ -10,6 +10,8 @@ from flask import current_app
 from flask_login import current_user
 import json
 
+from openheart.database import db, File
+
 from itertools import chain
 
 
@@ -112,7 +114,8 @@ def upload_raw_mr(list_files: list, project_name: str):
         xnat_hdr = get_xnat_hdr_from_h5_file(f.name_unique)
         create_xnat_scan(xnat_project, xnat_hdr, xnat_dict)
         upload_rawdata_file_to_scan(xnat_project, xnat_dict, [f.name_unique])
-        f.transmitted =  True
+        f.transmitted = True
+        db.session.commit()
 
     current_app.logger.info('Finished uploading of of data to xnat. Disconnecting xnat server.')
     xnat_server.disconnect()

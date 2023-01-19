@@ -165,9 +165,9 @@ def uniquely_identify_files():
     return list_duplicate_files
 
 
-@bp.route('/check', methods=["GET", "POST"])
+@bp.route('/upload_xnat', methods=["POST"])
 @login_required
-def check():
+def upload_xnat():
     if request.method == "POST":
         if 'cancel' in request.form:
             return redirect(url_for('upload.upload'))
@@ -179,19 +179,31 @@ def check():
                 f.scan_type = request.form.get(f'select_scan_{f.name_unique}')
             db.session.commit()
 
-            success = xnat.upload_raw_mr_to_vault(list_files)
-            current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
-
-            if success:
-                for f in list_files:
-                    current_app.logger.info(f"Finished upload request of {f.name} to "
-                                            f"{f.xnat_subject_id} | {f.xnat_experiment_id} | {f.xnat_scan_id}.")
-            else:
-                raise AssertionError(f"Something with the xnat upload went wrong.")
-
-            db.session.commit()
-
             return render_template('upload/check.html')
+
+
+@bp.route('/upload_scans_xnat', methods=["GET", "POST"])
+@login_required
+def upload_scans_xnat():
+    if request.method == "POST":
+        list_files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=False).all()
+
+        success = xnat.upload_raw_mr_to_vault(list_files)
+        current_app.logger.info(f"Finished upload request to {current_app.config['XNAT_PROJECT_ID_VAULT']}.")
+
+        if success:
+            for f in list_files:
+                current_app.logger.info(f"Finished upload request of {f.name} to "
+                                        f"{f.xnat_subject_id} | {f.xnat_experiment_id} | {f.xnat_scan_id}.")
+        else:
+            raise AssertionError(f"Something with the xnat upload went wrong.")
+
+        return('Files uploaded to XNAT')
+
+
+@bp.route('/check', methods=["POST", "GET"])
+@login_required
+def check():
     return render_template('upload/check.html')
 
 
@@ -202,6 +214,8 @@ def check_images(timeout):
     # Get files which have been transmitted but not yet submitted
     files = File.query.filter_by(user_id=current_user.id, format='.h5', transmitted=True, submitted=False).all()
 
+    current_app.logger.info(f"Number of files {len(files)} transmitted.")
+
     # Check the status of the container for each scan
     files = xnat.update_container_status(files)
     db.session.commit()
@@ -210,11 +224,15 @@ def check_images(timeout):
     files = xnat.download_dcm_images(files)
     db.session.commit()
 
+
+    # Also include files which have not yet been transmitted to the XNAT server
+    files = File.query.filter_by(user_id=current_user.id, format='.h5', submitted=False).all()
+
     all_recons_performed = True
     if timeout == 0:
         for f in files:
             all_recons_performed *= (f.reconstructed or (f.container_status == 4))
-            current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} '
+            current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} crashed? {f.container_status == 4}'
                                     f'-> all_recons_performed: {all_recons_performed}.')
 
     subject_file_lut = utils.create_subject_file_lookup(files)
