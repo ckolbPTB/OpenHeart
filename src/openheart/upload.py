@@ -42,7 +42,8 @@ def uploader():
         current_user.upload_folder_zip = user_folder
         db.session.commit()
 
-    return render_template('upload/upload.html')
+    return render_template('upload/upload.html',
+                           max_file_size=str(int(current_app.config['MAX_CONTENT_LENGTH']/(1024 * 1024 * 1024))))
 
 
 @bp.route('/unpack', methods=['POST'])
@@ -120,7 +121,8 @@ def unpack():
                                    files_for_subject=subject_file_lut, scan_type_list=list(utils.scan_types.keys()),
                                    list_duplicate_files=list_duplicate_files)
 
-    return render_template('upload/upload.html')
+    return render_template('upload/upload.html',
+                           max_file_size=str(int(current_app.config['MAX_CONTENT_LENGTH']/(1024 * 1024 * 1024))))
 
 
 @login_required

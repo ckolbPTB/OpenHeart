@@ -1,5 +1,5 @@
 $(document).ready(function() {
-	$('#form_upload_2_xnat345').on('submit', function(event) {
+	$('#form_upload_2_xnat').on('submit', function(event) {
 		event.preventDefault();
 		var formData = new FormData($('form')[0]);
 		$.ajax({
