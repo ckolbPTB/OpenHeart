@@ -80,6 +80,9 @@ def ismrmrd_2_xnat(ismrmrd_header, xml_scheme_filename):
     for ind in range(num_coils):
         coil_label_strg += (get_dict_values(ismrmrd_dict, xnat_mrd_list[coil_idx[ind]]) + ' ')
 
+    if len(coil_label_strg) > 255:
+        coil_label_strg = coil_label_strg[:243] + ' (truncated)'
+
     xnat_mrd_dict['mrd:mrdScanData/acquisitionSystemInformation/coilLabelList'] = coil_label_strg
     xnat_mrd_list = [elem for elem in xnat_mrd_list if
                      elem[0] != 'acquisitionSystemInformation' and elem[1] != 'coilLabel']
@@ -92,6 +95,9 @@ def ismrmrd_2_xnat(ismrmrd_header, xml_scheme_filename):
     waveform_strg = ''
     for ind in range(num_waveforms):
         waveform_strg += (get_dict_values(ismrmrd_dict, xnat_mrd_list[waveform_idx[ind]]) + ' ')
+
+    if len(waveform_strg) > 255:
+        waveform_strg = waveform_strg[:243] + ' (truncated)'
 
     xnat_mrd_dict['mrd:mrdScanData/waveformInformationList'] = waveform_strg
     xnat_mrd_list = [elem for elem in xnat_mrd_list if elem[0] != 'waveformInformation']
