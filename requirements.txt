@@ -11,6 +11,7 @@ sqlalchemy-mutable
 flask-login
 pydicom
 ismrmrd
+xmlschema
 pytest
 coverage
 scikit-image

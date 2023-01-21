@@ -28,7 +28,7 @@ def get_xnat_connection() -> pyxnat.Interface:
     # Get all projects available on xnat server
     projects = xnat_server.select.projects().get()
     if len(projects) == 0:
-        raise ConnectionError('No projects on xnat server found. Is the server running?')
+        raise ConnectionError(f'No projects on xnat server {current_app.config["XNAT_SERVER"]} found. Is the server running?')
     return xnat_server
 
 
@@ -127,8 +127,8 @@ def get_xnat_hdr_from_h5_file(filename_with_ext: str):
         output: dict containing keys describing a xnat:mrScanData file
     '''
     dset = ismrmrd.Dataset(filename_with_ext, 'dataset', create_if_needed=False)
-    header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-    xnat_hdr = utils.ismrmrd_2_xnat(header)
+    header = dset.read_xml_header()
+    xnat_hdr = utils.ismrmrd_2_xnat(header, os.path.join(os.path.dirname(__file__), 'ismrmrd.xsd'))
     dset.close()
     current_app.logger.info(f'Xnat file header extracted from {filename_with_ext}.')
 
@@ -203,7 +203,16 @@ def get_container_info_for_scan(xnat_project, xnat_file_dict):
     # Go through each entry and find out if the scan is mentioned
     container_json_info_list = []
     for container_json_info in json_list:
-        if xnat_file_dict['scan_id'] in container_json_info['mounts'][0]['xnat-host-path']:
+        # Find "raw-in" container info
+        raw_in_idx = -1
+        for idx in range(len(container_json_info['mounts'])):
+            if container_json_info['mounts'][idx]['name'] == 'raw-in':
+                raw_in_idx = idx
+                break
+
+        if raw_in_idx == -1:
+            current_app.logger.error('raw-in not found in container json')
+        if xnat_file_dict['scan_id'] in container_json_info['mounts'][raw_in_idx]['xnat-host-path']:
             container_json_info_list.append(container_json_info)
     return container_json_info_list
 
