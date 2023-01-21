@@ -203,7 +203,16 @@ def get_container_info_for_scan(xnat_project, xnat_file_dict):
     # Go through each entry and find out if the scan is mentioned
     container_json_info_list = []
     for container_json_info in json_list:
-        if xnat_file_dict['scan_id'] in container_json_info['mounts'][0]['xnat-host-path']:
+        # Find "raw-in" container info
+        raw_in_idx = -1
+        for idx in range(len(container_json_info['mounts'])):
+            if container_json_info['mounts'][idx]['name'] == 'raw-in':
+                raw_in_idx = idx
+                break
+
+        if raw_in_idx == -1:
+            current_app.logger.error('raw-in not found in container json')
+        if xnat_file_dict['scan_id'] in container_json_info['mounts'][raw_in_idx]['xnat-host-path']:
             container_json_info_list.append(container_json_info)
     return container_json_info_list
 
