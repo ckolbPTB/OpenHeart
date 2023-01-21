@@ -22,9 +22,7 @@
     var recon_done = 0;
     var reload = window.setInterval(function () {
         if (counter == 0) {
-            console.info('Upload scans xnat started');
             $.post('/upload/upload_scans_xnat', function(data) {
-            console.info('Upload scans xnat finished');
             });
         }
 
