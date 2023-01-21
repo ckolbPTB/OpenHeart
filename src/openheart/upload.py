@@ -235,7 +235,18 @@ def check_images(timeout):
             current_app.logger.info(f'File {f.name} reconstructed? {f.reconstructed} crashed? {f.container_status == 4}'
                                     f'-> all_recons_performed: {all_recons_performed}.')
 
+    # Check for which subjects all files are transmitted and reconstructed
     subject_file_lut = utils.create_subject_file_lookup(files)
+    subjects = []
+    for subj in subject_file_lut.keys():
+        curr_subj_transmitted = True
+        curr_subj_reconstructed = True
+        for f in subject_file_lut[subj]:
+            if f.transmitted == False:
+                curr_subj_transmitted = False
+            if f.reconstructed == False:
+                curr_subj_reconstructed = False
+        subjects.append([subj, curr_subj_transmitted, curr_subj_reconstructed])
 
     current_app.logger.info(f'Timeout {timeout}, all recons performed {all_recons_performed}.')
     current_app.logger.info('We will try to render:')
@@ -243,8 +254,8 @@ def check_images(timeout):
         current_app.logger.info(f'   Subject - {subj}')
         for scan in subject_file_lut[subj]:
             current_app.logger.info(f'      {scan.name}')
-    return render_template('upload/check_images.html', subjects=list(subject_file_lut.keys()),
-                           files_for_subject=subject_file_lut, reload=(all_recons_performed==False))
+    return render_template('upload/check_images.html', subjects=subjects, files_for_subject=subject_file_lut,
+                           reload=(all_recons_performed==False))
 
 
 @bp.route('/submit', methods=['GET', 'POST'])
