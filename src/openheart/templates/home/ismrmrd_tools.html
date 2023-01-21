@@ -4,8 +4,25 @@
 <div class="container-fluid">
     <div class="row align-items-center">
         <div class="col-6 offset-2 mt-5">
-            ISMRMRD CONVERTER
-            LINK TO QC DOCKER IMAGE
+            <p class="fs-4">Convert to ISMRMRD</p>
+            <p>
+                The <a href="https://ismrmrd.readthedocs.io/en/latest/" target="blank" class="link-danger">ismrmrd</a>
+                format is an open-source format for MR raw data. It contains meta information about acquisition parameters
+                such as repetition time, echo times or excitation flip angle. In addition, the k-space dimensions and
+                dimensions and resolution of the reconstructed images are provided. Each individual acquisition (i.e.
+                each single readout/frequency encoding line also have a header. Additional information such as the k-space
+                trajectory can also be added. Converters for vendor specific raw data formats to ismrmrd can be found here:
+                <a href="https://github.com/ismrmrd" target="blank" class="link-danger">ismrmrd@github</a>
+            </p>
+
+            <p class="fs-4">QC image reconstruction</p>
+            <p>
+                In order to verify the uploaded raw data before it is added to the database, image reconstruction is
+                carried out utilising <a href="https://github.com/SyneRBI/SIRF" target="blank" class="link-danger">SIRF</a>.
+                This is done as a quality control (QC) step. The reconstruction is run inside a docker container within
+                the XNAT-based database. The container is open-source and can be build using this code:
+                <a href="https://github.com/johannesmayer/SIRF-SuperBuild/tree/xnat-dcm-qfix" target="blank" class="link-danger">SIRF 4 QC</a>
+            </p>
         </div>
   </div>
 </div>
