@@ -14,28 +14,56 @@
 </div>
 
 <div class="container-fluid">
-    <form method="post" action={{url_for("upload.uploader")}} enctype="multipart/form-data">
-    <div class="row align-items-center mt-5">
-        <div class="col-6 offset-2">
-
-              <div class="form-group-lg">
-                <h4>Select zip file</h4>
-                <input type="file" name="file" class="form-control" id="customFile"/>
-              
-                <small id="customFileHelp" class="form-text text-muted">Select single zip file which contains raw data files in ismrmrd raw data format. The max size of the zip file should not exceed
-                    {{max_file_size}}GB. The raw data files for each subject should be in a separate folder.</small>
-                <a href="#" class="link-danger" title="Example of file structure" data-toggle="popover_zip"><small>Click here to see an example of the file structure.</small></a>
-                <p> <small  class="form-text text-muted"> By clicking "Select" you confirm that you have the right to make the selected
-                data publicly available.</small></p>
+    <form class="row g-2" method="post" id="form_upload_zip" action={{url_for("upload.uploader")}} enctype="multipart/form-data">
+        <div class="row align-items-center mt-5">
+            <div class="col-4 offset-2">
+                  <h4>Select zip file</h4>
             </div>
         </div>
-    </div>
-        <div class="row align-items-center mt-5">
-         <div class="col-3 offset-2">
-             <button type="submit" class="btn btn-danger">Select</button>
+        <div class="row align-items-center">
+            <div class="col-6 offset-2">
+                <p class="text-danger" id="zipFileMsg"></p>
+            </div>
         </div>
-    </div>
+        <div class="row align-items-center">
+
+            <div class="col-5 offset-2">
+                  <div class="form-group-lg">
+                        <input type="file" name="file" class="form-control" id="zipFile"/>
+                  </div>
+            </div>
+            <div class="col-1">
+                <button type="submit" class="btn btn-secondary">Upload</button>
+            </div>
+        </div>
+        <div class="row align-items-center">
+            <div class="col-6 offset-2">
+             <small id="zipFileHelp" class="form-text text-muted">Select single zip file which contains raw data files in ismrmrd raw data format. The max size of the zip file should not exceed
+                 {{max_file_size}}GB. The raw data files for each subject should be in a separate folder.</small>
+                <a href="#" class="link-danger" title="Example of file structure" data-toggle="popover_zip"><small>Click here to see an example of the file structure.</small></a>
+                <p> <small  class="form-text text-muted"> By clicking "Upload" you confirm that you have the right to make the selected data publicly available.</small></p>
+            </div>
+        </div>
+        <div class="row align-items-center">
+            <div class="col-6 offset-2 mt-1">
+                <div class="progress">
+                    <div id="progress_upload_zip" class="progress-bar progress-bar-striped bg-danger" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                        0%
+                    </div>
+                </div>
+            </div>
+        </div>
     </form>
+
+    <form method="post" action={{url_for("upload.unpack")}}>
+        <div class="row align-items-center mt-5">
+             <div class="col-3 offset-2">
+                 <button type="submit" class="btn btn-danger">Continue</button>
+            </div>
+        </div>
+    </form>
+
+
 </div>
 
 {% endblock %}

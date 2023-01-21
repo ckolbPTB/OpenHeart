@@ -1,33 +1,28 @@
 <div class="container">
     <div class="row mt-5 " title="reload" id={{reload}}>
     </div>
+    <!-- sub = [subject_name, flag_transmitted, flag_reconstructed]-->
     {% for sub in subjects %}
-        {% set sub_ns = namespace(curr_sub_reconstructed = True) %}
-        {%for f in files_for_subject[sub]%}
-            {% if f.reconstructed == False %}
-                {% set sub_ns.curr_sub_reconstructed = False %}
-            {% endif %}
-        {% endfor %}
         {% if loop.index0 % 4 == 0 %}
             <div class="row">
         {% endif %}
                 <div class="col-3">
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title">{{sub}}</h5>
-                            {% if sub_ns.curr_sub_reconstructed == 1 %}
-                                <div id=carousel_check_{{sub}} class="carousel carousel slide" data-bs-ride="carousel">
+                            <h5 class="card-title">{{sub[0]}}</h5>
+                            {% if sub[2] == 1 %}
+                                <div id=carousel_check_{{sub[0]}} class="carousel carousel slide" data-bs-ride="carousel">
                                     <div class="carousel-indicators">
-                                        {% for j in range(0, files_for_subject[sub]|length) %}
+                                        {% for j in range(0, files_for_subject[sub[0]]|length) %}
                                             {% if j == 0 %}
-                                                <button type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                                                <button type="button" data-bs-target=#carousel_check_{{sub[0]}} data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
                                             {% else %}
-                                                <button type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide-to={{j}} aria-label="Slide "{{j}}></button>
+                                                <button type="button" data-bs-target=#carousel_check_{{sub[0]}} data-bs-slide-to={{j}} aria-label="Slide "{{j}}></button>
                                             {% endif %}
                                         {% endfor %}
                                     </div>
                                     <div class="carousel-inner">
-                                        {%for f in files_for_subject[sub]%}
+                                        {%for f in files_for_subject[sub[0]]%}
                                             {% set file_id = f.id %}
                                             {% set scan = f.name_orig %}
                                             {% if loop.index0 == 0 %}
@@ -42,11 +37,11 @@
                                                 </div>
                                         {% endfor %}
                                     </div>
-                                    <button class="carousel-control-prev" type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide="prev">
+                                    <button class="carousel-control-prev" type="button" data-bs-target=#carousel_check_{{sub[0]}} data-bs-slide="prev">
                                         <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                         <span class="visually-hidden">Previous</span>
                                     </button>
-                                    <button class="carousel-control-next" type="button" data-bs-target=#carousel_check_{{sub}} data-bs-slide="next">
+                                    <button class="carousel-control-next" type="button" data-bs-target=#carousel_check_{{sub[0]}} data-bs-slide="next">
                                         <span class="carousel-control-next-icon" aria-hidden="true"></span>
                                         <span class="visually-hidden">Next</span>
                                     </button>
@@ -54,7 +49,7 @@
                                 <p class="card-text">
                                 {%if reload == 0%}
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name=check_{{sub}} value="" id="flexCheckDefault">
+                                        <input class="form-check-input" type="checkbox" name=check_{{sub[0]}} value="" id="flexCheckDefault">
                                         <label class="form-check-label" for="flexCheckDefault">
                                             Submit
                                         </label>
@@ -71,11 +66,19 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row">
-                                        <div class="text-center text-wrap text-break">
-                                            Reconstructing...
+                                    {% if sub[1] == 1 %}
+                                        <div class="row">
+                                            <div class="text-center text-wrap text-break">
+                                                Reconstructing...
+                                            </div>
                                         </div>
-                                    </div>
+                                    {% else %}
+                                        <div class="row">
+                                            <div class="text-center text-wrap text-break">
+                                                Uploading to XNAT...
+                                            </div>
+                                        </div>
+                                    {% endif %}
                                 {% else %}
                                     <div class="row mt-4">
                                         <div class="d-flex justify-content-center">

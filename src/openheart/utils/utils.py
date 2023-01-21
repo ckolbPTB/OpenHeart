@@ -133,6 +133,9 @@ def ismrmrd_2_xnat(ismrmrd_header, xml_scheme_filename):
                 ckey = ckey.replace('kspace_encoding_step', 'kspace_enc_step')
         xnat_mrd_dict[ckey] = get_dict_values(ismrmrd_dict, xnat_mrd_list[ind])
 
+
+    xnat_mrd_dict['mrd:mrdScanData/acquisitionSystemInformation/coilLabelList'] = 'TEMP'
+
     return (xnat_mrd_dict)
 
 
@@ -374,6 +377,11 @@ def clean_up_user_files(recreate_user_folders=False):
             # Remove uploaded zip files, extracted raw files, downloaded dicom files,...
             shutil.rmtree(oh_data_path_user)
             current_app.logger.info(f'   {oh_data_path_user} deleted')
+
+        # Clean zip file info
+        current_user.upload_filename_zip = "_"
+        current_user.upload_folder_zip = "_"
+        db.session.commit()
 
         # Create empty folders for user
         if recreate_user_folders:
