@@ -72,6 +72,7 @@ def unpack():
                     if not zip_info.is_dir():
                         czip_content = Path(zip_info.filename)
                         cpath, cfile = czip_content.parent, czip_content.name
+                        cpath = str(cpath).replace('/', '-')
 
                         if utils.valid_extension(czip_content):
                             fname_out = f"user_{current_user.id}_subj_{cpath}_{cfile}"
