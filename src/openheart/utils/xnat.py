@@ -303,7 +303,7 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
                 # Update scan uid with (0020,000E) 	Series Instance UID
                 dcm_header = utils.get_dicom_header(fpath_output)
-                scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
+                scan.attrs.set('mrd:mrdScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
                 current_app.logger.info(f'Dicom UID updated to {str(dcm_header[0][0x0020, 0x000e].value)}.')
 
             delete_files_from_path(fpath_output, {".zip"})
