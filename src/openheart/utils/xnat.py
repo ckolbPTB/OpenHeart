@@ -78,16 +78,22 @@ def set_xnat_ids_in_files(list_files: list) -> list:
     for idx, f in enumerate(list_files):
         experiment_id = utils.create_md5_from_string(f.subject_unique)
         experiment_id = f"Exp-{experiment_id[:digits_experiment_id]}"
-        scan_id = f'Scan_{uuid4()}-{utils.scan_types[f.scan_type]}'
+        scan_id = f'Scan_{uuid4()}'
 
         f.xnat_subject_id = f.subject_unique
         f.xnat_experiment_id = experiment_id
         f.xnat_scan_id = scan_id
 
+        # Add scan type ID to file name
+        file_name_h5_with_scan_type = f.name_unique.replace('.h5', f'-{utils.scan_types[f.scan_type]}.h5')
+        Path(f.name_unique).rename(file_name_h5_with_scan_type)
+        f.name_unique = file_name_h5_with_scan_type
+
         current_app.logger.info(f'Xnat parameters for {f.name}:')
         current_app.logger.info(f'   subject_id: {f.xnat_subject_id}')
         current_app.logger.info(f'   experiment_id: {f.xnat_experiment_id}')
         current_app.logger.info(f'   scan_id: {f.xnat_scan_id}')
+        current_app.logger.info(f'   name_unique: {f.name_unique}')
 
     return list_files
 
@@ -303,7 +309,7 @@ def download_dcm_from_scan(xnat_project, xnat_file_dict, fpath_output):
 
                 # Update scan uid with (0020,000E) 	Series Instance UID
                 dcm_header = utils.get_dicom_header(fpath_output)
-                scan.attrs.set('xnat:mrScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
+                scan.attrs.set('mrd:mrdScanData/UID', str(dcm_header[0][0x0020, 0x000e].value))
                 current_app.logger.info(f'Dicom UID updated to {str(dcm_header[0][0x0020, 0x000e].value)}.')
 
             delete_files_from_path(fpath_output, {".zip"})
