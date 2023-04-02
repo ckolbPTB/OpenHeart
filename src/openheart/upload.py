@@ -71,10 +71,17 @@ def unpack():
                 for zip_info in zip_info_list:
                     if not zip_info.is_dir():
                         czip_content = Path(zip_info.filename)
-                        cpath, cfile = czip_content.parent, czip_content.name
-                        cpath = str(cpath).replace('/', '-')
 
                         if utils.valid_extension(czip_content):
+                            cpath, cfile = czip_content.parent, czip_content.name
+
+                            cpath = str(cpath)
+                            # Remove any parent folder
+                            if cpath.count('/') == 1:
+                                cpath = cpath[cpath.find('/')+1:]
+                            elif cpath.count('/') > 1:
+                                raise ValueError(f"The folder structure of the zip is not valid. Too many subfolders in {cpath}.")
+
                             fname_out = f"user_{current_user.id}_subj_{cpath}_{cfile}"
                             zip_info.filename = str(fname_out)
                             zip.extract(zip_info, path=filepath_out)
