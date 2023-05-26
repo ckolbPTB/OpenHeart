@@ -3,6 +3,11 @@ version: '3.8'
 services:
   app:
     build: .
+    environment:
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-default}
+      - OH_SLACK_HOOK=${OH_SLACK_HOOK:-default}
+      - XNAT_ADMIN_USER=${XNAT_ADMIN_USER:-default}
+      - XNAT_ADMIN_PW=${XNAT_ADMIN_PW:-default}
     env_file:
       - ohapp.env
     ports:
