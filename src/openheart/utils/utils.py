@@ -8,6 +8,8 @@ import hashlib
 import docker
 import skimage
 
+import SimpleITK as sitk
+
 from flask import current_app
 from flask_login import current_user
 
@@ -139,14 +141,32 @@ def ismrmrd_2_xnat(ismrmrd_header, xml_scheme_filename):
     return (xnat_mrd_dict)
 
 
-def max99perc(dat):
+def max99perc(dat:np.array):
     dat = np.sort(dat.flatten())
     return (dat[int(np.round(dat.shape[0] * 0.99))])
 
 
-def min01perc(dat):
+def min01perc(dat:np.array):
     dat = np.sort(dat.flatten())
     return (dat[int(np.round(dat.shape[0] * 0.01))])
+
+
+def correct_bias_field(dat_dyn:np.array, num_rep:int=5, num_iter:int=50, num_level:int=3) -> np.array:
+    for _ in range(num_rep):
+        dat = np.average(dat_dyn, axis=2)
+        dat_sitk = sitk.GetImageFromArray(dat)
+
+        corrector = sitk.N4BiasFieldCorrectionImageFilter()
+        corrector.SetMaximumNumberOfIterations([num_iter] * num_level)
+        corrector.Execute(dat_sitk)
+
+        logbiasfield = corrector.GetLogBiasFieldAsImage(dat_sitk)
+        logbiasfield = sitk.GetArrayFromImage(logbiasfield)
+        biasfield = np.exp(logbiasfield)
+        
+        dat_dyn = dat_dyn / biasfield[:,:,np.newaxis]
+    
+    return(dat_dyn)
 
 
 def read_and_process_dicoms(dicom_path:Path):
@@ -176,30 +196,60 @@ def read_and_process_dicoms(dicom_path:Path):
     # Read data
     ds = [pydicom.dcmread(str(f)) for f in dcm_files]
     ds[:] = map(lambda x: x.pixel_array, ds)
-
-    # Transform to array and resort
-    ds = np.asarray(ds)
-    ds = ds[slice_idx,...]
-    ds = np.moveaxis(ds, 0, -1)
-    ds = np.reshape(ds, ds.shape[:2] + (-1,))
-    current_app.logger.info(f'Shape of dicom images: {ds.shape}.')
-
+    idim = ds[0].shape
+    
     # Number of slices
     slice_idx = sort_key_words.index('SliceLocation')
-    num_slices = len(np.unique(sort_idx[slice_idx,:]))
+    slice_pos = np.unique(sort_idx[slice_idx,:])
+    num_slices = len(slice_pos)
     current_app.logger.info(f'Number of slices: {num_slices}.')
-
+    
+    # Number of phases for each slice
+    num_phases = [len(np.where(sl == sort_idx[slice_idx,:])[0]) for sl in slice_pos]
+    num_max_phases = np.max(num_phases)
+    
+    current_app.logger.info(f'Max number of phases: {num_max_phases}.')
+    
     # Split into slices
-    ds_slices = np.array_split(ds, num_slices, axis=2)
+    ds_slices = []
+    for sl in slice_pos:
+        curr_slice = [ds[i] for i in np.where(sl == sort_idx[slice_idx,:])[0]]
+        ds_slices.append(curr_slice)
+        
+    # Make sure all slices have the same number of dynamics
+    for snd in range(num_slices):
+        ds_slices[snd].extend([ds_slices[snd][-1],]*(num_max_phases-num_phases[snd]))
+    
+    current_app.logger.info(f'Shape of dicom images: {ds_slices[0][0].shape}.')
+    
+    # Transform dynamic list to 2d+t array
+    ds_slices = [np.moveaxis(np.asarray(dsl), [0,1,2], [2,0,1]) for dsl in ds_slices]
+    
+    # Normalise each slice
+    for snd in range(num_slices):
+        cslice = ds_slices[snd].astype(np.float32)
+        cslice = correct_bias_field(cslice)
+        cslice_avg = np.average(cslice, axis=2)[idim[0]//4:3*idim[0]//4, idim[1]//4:3*idim[1]//4]
+        cslice = (cslice - min01perc(cslice_avg))/(max99perc(cslice_avg) - min01perc(cslice_avg))
+        cslice[cslice > 1] = 1
+        cslice[cslice < 0] = 0
+        ds_slices[snd] =  cslice
 
     # Montage for overview
-    for dyn in range(ds_slices[0].shape[2]):
+    for dyn in range(num_max_phases):
         tmp = skimage.util.montage([x[:,:,dyn] for x in ds_slices], fill=0)
         if dyn == 0:
-            ds_montage = np.zeros(tmp.shape + (ds_slices[0].shape[2],))
+            ds_montage = np.zeros(tmp.shape + (num_max_phases,))
         ds_montage[:,:,dyn] = tmp
+        
+    # Central slice
+    ds_central_slice = ds_slices[int(num_slices//2)]
+    
+    # Image array for QC
+    ds_qc = np.moveaxis(np.asarray(ds_slices), [0,1,2,3], [2,0,1,3])
+    ds_qc = np.reshape(ds_qc, ds[0].shape + (num_max_phases*num_slices,))
 
-    return ds, ds_slices[int(num_slices//2)], ds_montage, num_files
+    return ds_qc, ds_central_slice, ds_montage, num_files
 
 
 def get_dicom_header(dicom_path:Path):
@@ -258,10 +308,13 @@ def save_gif(im:np.array, fpath_output_with_ext:str, cmap='gray', min_max_val=[]
     '''
     # Translate image from grayscale to rgb
     cmap = plt.get_cmap(cmap)
+    
     if len(min_max_val) == 0:
         im = (im - min01perc(im)) / (max99perc(im) - min01perc(im))
     else:
         im = (im - min_max_val[0]) / (min_max_val[1] - min_max_val[0])
+    im[im > 1] = 1
+    im[im < 0] = 0
     im = cmap(im)
     im_rgb = (im * 255).astype(np.uint8)[:,:,:,:3]
 
