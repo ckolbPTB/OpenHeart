@@ -14,5 +14,6 @@ ismrmrd
 xmlschema
 pytest
 coverage
+SimpleITK
 scikit-image
 git+https://github.com/ckolbPTB/pyxnat.git@share_primary
